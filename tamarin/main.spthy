@@ -59,9 +59,9 @@ rule Init_Auditor:
 
 /* ------- Subprotocol Rules ------- */
 
-#include "publish-epoch"
-#include "query"
-#include "self-audit"
+#include "publishepoch.spthy"
+#include "query.spthy"
+#include "selfaudit.spthy"
 
 
 /* ------- Restrictions ------- */
@@ -69,20 +69,20 @@ rule Init_Auditor:
 restriction Eq:
     "All a b #i . Eq(a,b)@i ==> a = b"
 
-restriction Neq:
-    "All a b #i . Neq(a,b)@i ==> a != b"
+// restriction Neq:
+//     "All a b #i . Neq(a,b)@i ==> not (a = b)"
 
-restriction GreaterThan: // x > y
-    "All x y #i . GreaterThan(x,y)@i ==> y << x & x != y"
+// restriction GreaterThan: // x > y
+//     "All x y #i . GreaterThan(x,y)@i ==> y << x & not (x = y)"
 
-restriction LessThan: // x < y
-    "All x y #i . LessThan(x,y)@i ==> x << y & x != y"
+// restriction LessThan: // x < y
+//     "All x y #i . LessThan(x,y)@i ==> x << y & not (x = y)"
 
-restriction GreaterOrEqualThan: // x >= y
-    "All x y #i . GreaterThan(x,y)@i ==> y << x"
+// restriction GreaterOrEqualThan: // x >= y
+//     "All x y #i . GreaterOrEqualThan(x,y)@i ==> y << x"
 
 restriction LessOrEqualThan: // x <= y
-    "All x y #i . LessThan(x,y)@i ==> x << y"
+    "All x y #i . LessOrEqualThan(x,y)@i ==> x << y"
 
 /* ------- Lemmas ------- */
 

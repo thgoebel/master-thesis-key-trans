@@ -8,10 +8,10 @@ and the ProtonVKD.VerifyEpoch subprotocols
 // TODO: distinguish between the normal keylist and the not-yet-included keylist?
 rule ClientKeyGen:
     let keys_new = keys ++ ~newkey
-        keys_rev_new = keys_rev %+ %1
+        keys_rev_new = %keys_rev %+ %1
     in
     [ Fr(~newkey)
-    , St_Client(id, email, keys, keys_rev) ]
+    , St_Client(id, email, keys, %keys_rev) ]
     --[ ClientKeyGen(email, ~newkey)
       , RequestInsertion(email, keys_new) ]->
     [ St_Client(id, email, keys_new, keys_rev_new)
@@ -21,10 +21,10 @@ rule ClientKeyGen:
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     let roothash_new = 'todo'
         chainhash_new = h(chainhash_old ++ roothash_new)
-        epoch_id_new = epoch_id_old %+ %1
+        epoch_id_new = %epoch_id_old %+ %1
     in
     [ In(<'insert', email, keys>)
-    , St_Server(id, epoch_id_old, chainhash_old, roothash_old) ]
+    , St_Server(id, %epoch_id_old, chainhash_old, roothash_old) ]
     --[ IssueEpoch(epoch_id_new, chainhash_new, email, keys) ]->
     [ St_Server(id, epoch_id_new, chainhash_new, roothash_new)
     , !Database(email, epoch_id_new, keys, %1)  // TODO: val_rev
@@ -33,15 +33,15 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
 rule VerifyEpoch_1[color=#f9d949]:
-    let epoch_id_new = epoch_id_old %+ %1
+    let epoch_id_new = %epoch_id_old %+ %1
     in
-    [ St_Auditor(id, epoch_id_old, chainhash_old) ]
+    [ St_Auditor(id, %epoch_id_old, chainhash_old) ]
     -->
-    [ St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new)
+    [ St_Auditor_VerifyEpoch1(id, %epoch_id_old, chainhash_old, epoch_id_new)
     , Out(<'ve1', epoch_id_new>) ]
 
 rule VerifyEpoch_2[color=#f9d949]:
-    [ In(<'ve1', epoch_id_new>),
+    [ In(<'ve1', epoch_id_new>)
     , St_Server_(id, epoch_id, chainhash, roothash) ]
     -->
     [ St_Server_(id, epoch_id, chainhash, roothash)

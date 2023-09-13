@@ -5,10 +5,10 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 
 rule Query_1[color=#c4b7ff]:
     [ St_Client(id, email, keys, keys_rev)
-    , !Epoch(epoch_id, chainhash_unused) // use persistent fact as workaround to get *a* epoch_id
-    , Out(<'q1', $label, epoch_id>) ]
+    , !Epoch(epoch_id, chainhash_unused) ] // use persistent fact as workaround to get *a* epoch_id
     -->
-    [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id) ]
+    [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id)
+    , Out(<'q1', $label, epoch_id>) ]
 
 // TODO: this allows the server to reply with any val_rev. But it should reply with the latest one!
 rule Query_2[color=#c4b7ff]:
