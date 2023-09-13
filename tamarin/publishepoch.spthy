@@ -11,11 +11,11 @@ rule ClientKeyGen:
         keys_rev_new = %keys_rev %+ %1
     in
     [ Fr(~newkey)
-    , St_Client(id, email, keys, %keys_rev) ]
-    --[ ClientKeyGen(email, ~newkey)
-      , RequestInsertion(email, keys_new) ]->
-    [ St_Client(id, email, keys_new, keys_rev_new)
-    , Out(<'insert', email, keys_new>) ]
+    , St_Client(id, $email, keys, %keys_rev) ]
+    --[ ClientKeyGen($email, keys, keys_new)
+      , RequestInsertion($email, keys_new) ]->
+    [ St_Client(id, $email, keys_new, keys_rev_new)
+    , Out(<'insert', $email, keys_new>) ]
 
 // TODO: model aggregation into batches (instead of one epoch per key)
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
@@ -25,10 +25,12 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     in
     [ In(<'insert', email, keys>)
     , St_Server(id, %epoch_id_old, chainhash_old, roothash_old) ]
-    --[ IssueEpoch(epoch_id_new, chainhash_new, email, keys) ]->
+    --[ IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
+      , IssueEpochForInsertion(epoch_id_new, chainhash_new, email, keys)
+      , Insert(email, keys) ]->
     [ St_Server(id, epoch_id_new, chainhash_new, roothash_new)
-    , !Database(email, epoch_id_new, keys, %1)  // TODO: val_rev
-    , !Epoch(epoch_id_new, chainhash_new) ]
+    , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
+    , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new) ]
 
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
@@ -41,20 +43,21 @@ rule VerifyEpoch_1[color=#f9d949]:
     , Out(<'ve1', epoch_id_new>) ]
 
 rule VerifyEpoch_2[color=#f9d949]:
-    [ In(<'ve1', epoch_id_new>)
-    , St_Server_(id, epoch_id, chainhash, roothash) ]
+    [ In(<'ve1', %epoch_id_verify>)
+    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify)
+    , St_Server(id, epoch_id, chainhash, roothash) ]
     -->
-    [ St_Server_(id, epoch_id, chainhash, roothash)
-    , Out(<'ve2', chainhash, roothash>) ]
+    [ St_Server(id, epoch_id, chainhash, roothash)
+    , Out(<'ve2', chainhash_verify, roothash_verify>) ]
 
 // Note: This algorithm does NOT check append-only-ness.
 //       It only checks that chainhash_t is included in CT.
+// TODO: check against magic bulletin board.
 // TODO: model certificate and SCT.
 rule VerifyEpoch_3[color=#f9d949]:
     let chainhash_new_computed = h(chainhash_old ++ roothash_new)
     in
     [ In(<'ve2', chainhash_new, roothash_new>)
-    , !Epoch(epoch_id_new, chainhash_new)
     , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
     --[ Eq(chainhash_new_computed, chainhash_new)
       , EpochVerified(epoch_id_new, chainhash_new) ]->
@@ -63,19 +66,29 @@ rule VerifyEpoch_3[color=#f9d949]:
 
 /* ------- Lemmas ------- */
 
+// Tell Tamarin where "keys" could have come from
+// TODO: doesn't work, still 9 partial deconstructions left
+// TODO: use subterms??
+lemma Type_ClientKeyGen_Keys [use_induction,sources]:
+    all-traces
+    "All email prevkeylist newkeylist #i .
+        ClientKeyGen(email, prevkeylist, newkeylist)@i
+      ==> ( Ex prevprevkeylist #j . ClientKeyGen(email, prevprevkeylist, prevkeylist)@j & j < i )
+         | ( prevkeylist = 'empty')
+    "
 
 lemma Executability_PublishEpoch:
     exists-trace
     "Ex email keys epoch_id chainhash #i #j .
         RequestInsertion(email, keys)@i
-        & IssueEpoch(epoch_id, chainhash, email, keys)@j
+        & IssueEpochForInsertion(epoch_id, chainhash, email, keys)@j
         & i < j
     "
 
 lemma Executability_VerifyEpoch:
     exists-trace
     "Ex epoch_id email keys chainhash #i #j .
-        IssueEpoch(epoch_id, chainhash, email, keys)@i
+        IssueEpochForInsertion(epoch_id, chainhash, email, keys)@i
         & EpochVerified(epoch_id, chainhash)@j
         & i < j
     "

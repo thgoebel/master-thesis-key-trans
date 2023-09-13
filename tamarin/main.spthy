@@ -10,10 +10,13 @@ begin
  * Status:      WIP
  */
 
-builtins: hashing,multiset,natural-numbers,asymmetric-encryption
+builtins: hashing, multiset, natural-numbers, asymmetric-encryption
 
 /*
 This model is inspired by the TreeKEM model in [CSF23].
+
+The persistent facts prefixed by "SST_" are "Server State"
+and they should only be used by server rules.
 
 ## Limitations
 
@@ -41,9 +44,10 @@ rule Init_Server:
         roothash = 'empty'
     in
     [ Fr(~id) ]
-    -->
-    [ St_Server_(~id, epoch_id, chainhash, roothash)
-    , !Epoch(epoch_id, chainhash) ]
+    --[ InitServer()
+      , IssueEpoch(epoch_id, chainhash, roothash) ]->
+    [ St_Server(~id, epoch_id, chainhash, roothash)
+    , !SST_Epoch(epoch_id, chainhash, roothash) ]
 
 rule Init_Auditor:
     let epoch_id = %1
@@ -83,6 +87,9 @@ restriction Eq:
 
 restriction LessOrEqualThan: // x <= y
     "All x y #i . LessOrEqualThan(x,y)@i ==> x << y"
+
+restriction OnlyOneServer:
+    "All #i #j . InitServer()@i& InitServer()@j ==> #i = #j"
 
 /* ------- Lemmas ------- */
 

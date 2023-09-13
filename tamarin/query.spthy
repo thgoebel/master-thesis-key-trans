@@ -5,19 +5,22 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 
 rule Query_1[color=#c4b7ff]:
     [ St_Client(id, email, keys, keys_rev)
-    , !Epoch(epoch_id, chainhash_unused) ] // use persistent fact as workaround to get *a* epoch_id
+    , !SST_Epoch(epoch_id, chainhash_unused, roothash_unused) ] // workaround to get *a* epoch_id
     -->
     [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id)
     , Out(<'q1', $label, epoch_id>) ]
 
 // TODO: this allows the server to reply with any val_rev. But it should reply with the latest one!
+// TODO: what to do about this infinite loop? just keep St_Server commented out?
 rule Query_2[color=#c4b7ff]:
-    [ St_Server(id, epoch_id, chainhash, roothash)
-    , In(<'q1', label, epoch_id_query>)
-    , !Database(label, epoch_id_inserted, val, val_rev) ]
-    --[ LessOrEqualThan(epoch_id_inserted, epoch_id_query) ]->
-    [ St_Server(id, epoch_id, chainhash, roothash)
-    , Out(<'q2', val, val_rev, roothash>) ]
+    [ //St_Server(id, epoch_id, chainhash, roothash)
+     In(<'q1', label, epoch_id_query>)
+    , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query)
+    , !SST_Directory(label, epoch_id_inserted, val, val_rev) ]
+    --[ LessOrEqualThan(epoch_id_inserted, epoch_id_query)
+      , QueryResponse(epoch_id_query, label, val) ]->
+    [ //St_Server(id, epoch_id, chainhash, roothash)
+     Out(<'q2', val, val_rev, roothash_query>) ]
 
 rule Query_3[color=#c4b7ff]:
     [ St_Client_Query1(id, email, keys, keys_rev, label, epoch_id)
@@ -32,9 +35,17 @@ rule Query_3[color=#c4b7ff]:
 
 /* ------- Lemmas ------- */
 
+lemma Helper_Ordering [reuse]:
+    all-traces
+    "All epoch_id_query label val #i .
+        QueryResponse(epoch_id_query, label, val)@i
+     ==> (Ex #j . Insert(label, val)@j & j < i )
+    "
 
 lemma Executability_Query:
     exists-trace
-    "Ex epoch_id label val val_rev roothash #i .
-        QueryVerified(epoch_id, label, val, val_rev, roothash)@i
+    "Ex epoch_id label val val_rev roothash #i #j.
+        QueryResponse(epoch_id, label, val)@i
+        & QueryVerified(epoch_id, label, val, val_rev, roothash)@j
+        & i < j
     "
