@@ -17,15 +17,18 @@ rule Query_2[color=#c4b7ff]:
      In(<'q1', label, epoch_id_query>)
     , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query)
     , !SST_Directory(label, epoch_id_inserted, val, val_rev) ]
-    --[ LessOrEqualThan(epoch_id_inserted, epoch_id_query)
-      , QueryResponse(epoch_id_query, label, val) ]->
+    --[
+        LessOrEqualThan(epoch_id_inserted, epoch_id_query)
+      , QueryResponse(epoch_id_query, label, val)
+    ]->
     [ //St_Server(id, epoch_id, chainhash, roothash)
      Out(<'q2', val, val_rev, roothash_query>) ]
 
 rule Query_3[color=#c4b7ff]:
     [ St_Client_Query1(id, email, keys, keys_rev, label, epoch_id)
     , In(<'q2', val, val_rev, roothash>) ]
-    --[ QueryVerified(epoch_id, label, val, val_rev, roothash)
+    --[
+        QueryVerified(epoch_id, label, val, val_rev, roothash)
         // TODO: VerifyEpoch
         // TODO: check copath to roothash
         // TODO: check SKL signature

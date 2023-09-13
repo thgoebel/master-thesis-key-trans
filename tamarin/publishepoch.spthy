@@ -12,8 +12,10 @@ rule ClientKeyGen:
     in
     [ Fr(~newkey)
     , St_Client(id, $email, keys, %keys_rev) ]
-    --[ ClientKeyGen($email, keys, keys_new)
-      , RequestInsertion($email, keys_new) ]->
+    --[
+        ClientKeyGen($email, keys, keys_new)
+      , RequestInsertion($email, keys_new)
+    ]->
     [ St_Client(id, $email, keys_new, keys_rev_new)
     , Out(<'insert', $email, keys_new>) ]
 
@@ -25,9 +27,11 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     in
     [ In(<'insert', email, keys>)
     , St_Server(id, %epoch_id_old, chainhash_old, roothash_old) ]
-    --[ IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
+    --[
+        IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
       , IssueEpochForInsertion(epoch_id_new, chainhash_new, email, keys)
-      , Insert(email, keys) ]->
+      , Insert(email, keys)
+    ]->
     [ St_Server(id, epoch_id_new, chainhash_new, roothash_new)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new) ]
@@ -59,8 +63,10 @@ rule VerifyEpoch_3[color=#f9d949]:
     in
     [ In(<'ve2', chainhash_new, roothash_new>)
     , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
-    --[ Eq(chainhash_new_computed, chainhash_new)
-      , EpochVerified(epoch_id_new, chainhash_new) ]->
+    --[
+        Eq(chainhash_new_computed, chainhash_new)
+      , EpochVerified(epoch_id_new, chainhash_new)
+    ]->
     [ St_Auditor(id, epoch_id_new, chainhash_new)]
 
 
