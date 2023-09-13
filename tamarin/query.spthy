@@ -1,0 +1,40 @@
+/*
+This file contains the VKD.Query and VKD.VerifyQuery subprotocols
+(also known as ProtonVKD.GetProof and ProtonVKD.VerifyProofInEpoch).
+*/
+
+rule Query_1[color=#c4b7ff]:
+    [ St_Client(id, email, keys, keys_rev)
+    , !Epoch(epoch_id, chainhash_unused) // use persistent fact as workaround to get *a* epoch_id
+    , Out(<'q1', $label, epoch_id>) ]
+    -->
+    [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id) ]
+
+// TODO: this allows the server to reply with any val_rev. But it should reply with the latest one!
+rule Query_2[color=#c4b7ff]:
+    [ St_Server(id, epoch_id, chainhash, roothash)
+    , In(<'q1', label, epoch_id_query>)
+    , !Database(label, epoch_id_inserted, val, val_rev) ]
+    --[ LessOrEqualThan(epoch_id_inserted, epoch_id_query) ]->
+    [ St_Server(id, epoch_id, chainhash, roothash)
+    , Out(<'q2', val, val_rev, roothash>) ]
+
+rule Query_3[color=#c4b7ff]:
+    [ St_Client_Query1(id, email, keys, keys_rev, label, epoch_id)
+    , In(<'q2', val, val_rev, roothash>) ]
+    --[ QueryVerified(epoch_id, label, val, val_rev, roothash)
+        // TODO: VerifyEpoch
+        // TODO: check copath to roothash
+        // TODO: check SKL signature
+      ]->
+    [ St_Client(id, email, keys, keys_rev) ]
+
+
+/* ------- Lemmas ------- */
+
+
+lemma Executability_Query:
+    exists-trace
+    "Ex epoch_id label val val_rev roothash #i .
+        QueryVerified(epoch_id, label, val, val_rev, roothash)@i
+    "

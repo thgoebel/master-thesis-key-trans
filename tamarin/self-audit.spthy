@@ -1,0 +1,6 @@
+/*
+This file contains the VKD.KeyHistory and VKD.VerifyHistory subprotocols
+(also known as ProtonVKD.SelfAudit).
+*/
+
+// TODO

@@ -1,0 +1,91 @@
+theory ProtonKT
+begin
+
+/*
+ * Protocol:    Proton Key Transparency
+ * Modeler:     Thore Goebel
+ * License:     GPL-v3-or-later
+ * Date:        September 2023
+ *
+ * Status:      WIP
+ */
+
+builtins: hashing,multiset,natural-numbers,asymmetric-encryption
+
+/*
+This model is inspired by the TreeKEM model in [CSF23].
+
+## Limitations
+
+See the various TODOs throughout.
+
+## References
+
+[CSF23]: https://eprint.iacr.org/2022/1130
+*/
+
+
+/* ------- Initialisation Rules ------- */
+
+// TODO: support multiple email per account as tuples of <email, keylist>
+rule Init_Client:
+    let keys = 'empty'
+        keys_rev = %1
+    in
+    [ Fr(~id) ] --> [ St_Client(~id, $email, keys, keys_rev) ]
+
+// TODO: server should sign the epochs
+rule Init_Server:
+    let epoch_id = %1
+        chainhash = 'empty'
+        roothash = 'empty'
+    in
+    [ Fr(~id) ]
+    -->
+    [ St_Server_(~id, epoch_id, chainhash, roothash)
+    , !Epoch(epoch_id, chainhash) ]
+
+rule Init_Auditor:
+    let epoch_id = %1
+        chainhash = 'empty'
+    in
+    [ Fr(~id) ] --> [ St_Auditor(~id, epoch_id, chainhash) ]
+
+
+/* ------- Various Protocol Rules ------- */
+
+
+
+
+/* ------- Subprotocol Rules ------- */
+
+#include "publish-epoch"
+#include "query"
+#include "self-audit"
+
+
+/* ------- Restrictions ------- */
+
+restriction Eq:
+    "All a b #i . Eq(a,b)@i ==> a = b"
+
+restriction Neq:
+    "All a b #i . Neq(a,b)@i ==> a != b"
+
+restriction GreaterThan: // x > y
+    "All x y #i . GreaterThan(x,y)@i ==> y << x & x != y"
+
+restriction LessThan: // x < y
+    "All x y #i . LessThan(x,y)@i ==> x << y & x != y"
+
+restriction GreaterOrEqualThan: // x >= y
+    "All x y #i . GreaterThan(x,y)@i ==> y << x"
+
+restriction LessOrEqualThan: // x <= y
+    "All x y #i . LessThan(x,y)@i ==> x << y"
+
+/* ------- Lemmas ------- */
+
+// TODO
+
+end

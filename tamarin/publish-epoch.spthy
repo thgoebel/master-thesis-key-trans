@@ -1,0 +1,81 @@
+/*
+This file contains the Email Address Key generation, the VKD.Publish,
+and the ProtonVKD.VerifyEpoch subprotocols
+*/
+
+/* ------- VKD.Publish ------- */
+
+// TODO: distinguish between the normal keylist and the not-yet-included keylist?
+rule ClientKeyGen:
+    let keys_new = keys ++ ~newkey
+        keys_rev_new = keys_rev %+ %1
+    in
+    [ Fr(~newkey)
+    , St_Client(id, email, keys, keys_rev) ]
+    --[ ClientKeyGen(email, ~newkey)
+      , RequestInsertion(email, keys_new) ]->
+    [ St_Client(id, email, keys_new, keys_rev_new)
+    , Out(<'insert', email, keys_new>) ]
+
+// TODO: model aggregation into batches (instead of one epoch per key)
+rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
+    let roothash_new = 'todo'
+        chainhash_new = h(chainhash_old ++ roothash_new)
+        epoch_id_new = epoch_id_old %+ %1
+    in
+    [ In(<'insert', email, keys>)
+    , St_Server(id, epoch_id_old, chainhash_old, roothash_old) ]
+    --[ IssueEpoch(epoch_id_new, chainhash_new, email, keys) ]->
+    [ St_Server(id, epoch_id_new, chainhash_new, roothash_new)
+    , !Database(email, epoch_id_new, keys, %1)  // TODO: val_rev
+    , !Epoch(epoch_id_new, chainhash_new) ]
+
+/* ------- ProtonVKD.VerifyEpoch ------- */
+
+rule VerifyEpoch_1[color=#f9d949]:
+    let epoch_id_new = epoch_id_old %+ %1
+    in
+    [ St_Auditor(id, epoch_id_old, chainhash_old) ]
+    -->
+    [ St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new)
+    , Out(<'ve1', epoch_id_new>) ]
+
+rule VerifyEpoch_2[color=#f9d949]:
+    [ In(<'ve1', epoch_id_new>),
+    , St_Server_(id, epoch_id, chainhash, roothash) ]
+    -->
+    [ St_Server_(id, epoch_id, chainhash, roothash)
+    , Out(<'ve2', chainhash, roothash>) ]
+
+// Note: This algorithm does NOT check append-only-ness.
+//       It only checks that chainhash_t is included in CT.
+// TODO: model certificate and SCT.
+rule VerifyEpoch_3[color=#f9d949]:
+    let chainhash_new_computed = h(chainhash_old ++ roothash_new)
+    in
+    [ In(<'ve2', chainhash_new, roothash_new>)
+    , !Epoch(epoch_id_new, chainhash_new)
+    , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
+    --[ Eq(chainhash_new_computed, chainhash_new)
+      , EpochVerified(epoch_id_new, chainhash_new) ]->
+    [ St_Auditor(id, epoch_id_new, chainhash_new)]
+
+
+/* ------- Lemmas ------- */
+
+
+lemma Executability_PublishEpoch:
+    exists-trace
+    "Ex email keys epoch_id chainhash #i #j .
+        RequestInsertion(email, keys)@i
+        & IssueEpoch(epoch_id, chainhash, email, keys)@j
+        & i < j
+    "
+
+lemma Executability_VerifyEpoch:
+    exists-trace
+    "Ex epoch_id email keys chainhash #i #j .
+        IssueEpoch(epoch_id, chainhash, email, keys)@i
+        & EpochVerified(epoch_id, chainhash)@j
+        & i < j
+    "
