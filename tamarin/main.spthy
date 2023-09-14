@@ -46,6 +46,7 @@ rule Reveal_Server_Sk:
 // TODO: server should sign the epochs
 rule Init_Server:
     let epoch_id = %1
+        latest_epoch_id = epoch_id
         roothash = 'empty'
         chainhash = 'empty'
         sig = sign(<epoch_id, chainhash>, sk)
@@ -56,7 +57,7 @@ rule Init_Server:
         InitServer()
       , IssueEpoch(epoch_id, chainhash, roothash)
     ]->
-    [ St_Server(~id, sk, epoch_id, chainhash, roothash)
+    [ St_Server(~id, sk, latest_epoch_id)
     , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
 
 rule Init_Auditor:
