@@ -26,9 +26,10 @@ rule ClientKeyGen:
 
 // TODO: model aggregation into batches (instead of one epoch per key)
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
-    let roothash_new = 'todo'
+    let epoch_id_new = %epoch_id_old %+ %1
+        roothash_new = 'todo'
         chainhash_new = h(chainhash_old ++ roothash_new)
-        epoch_id_new = %epoch_id_old %+ %1
+        sig = sign(<epoch_id_new, chainhash_new>, sk)
     in
     [ In(<'insert', email, keys>)
     , St_Server(id, sk, %epoch_id_old, chainhash_old, roothash_old) ]
@@ -39,7 +40,7 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     ]->
     [ St_Server(id, sk, epoch_id_new, chainhash_new, roothash_new)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
-    , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new) ]
+    , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig) ]
 
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
@@ -51,9 +52,12 @@ rule VerifyEpoch_1[color=#f9d949]:
     [ St_Auditor_VerifyEpoch1(id, %epoch_id_old, chainhash_old, epoch_id_new)
     , Out(<'ve1', epoch_id_new>) ]
 
+// curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
+// TODO: the API does not include any signature
+// XXX: We don't model all fields in the response, e.g. "PrevChainHash" is omitted.
 rule VerifyEpoch_2[color=#f9d949]:
     [ In(<'ve1', %epoch_id_verify>)
-    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify)
+    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify, sig)
     , St_Server(id, sk, epoch_id, chainhash, roothash) ]
     -->
     [ St_Server(id, sk, epoch_id, chainhash, roothash)

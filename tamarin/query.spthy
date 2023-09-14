@@ -5,7 +5,7 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 
 rule Query_1[color=#c4b7ff]:
     [ St_Client(id, email, keys, keys_rev)
-    , !SST_Epoch(epoch_id, chainhash_unused, roothash_unused) ] // workaround to get *a* epoch_id
+    , !SST_Epoch(epoch_id, chainhash_unused, roothash_unused, sig_unused) ] // workaround to get *a* epoch_id
     -->
     [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id)
     , Out(<'q1', $label, epoch_id>) ]
@@ -15,7 +15,7 @@ rule Query_1[color=#c4b7ff]:
 rule Query_2[color=#c4b7ff]:
     [ //St_Server(id, sk, epoch_id, chainhash, roothash)
      In(<'q1', label, epoch_id_query>)
-    , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query)
+    , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query, sig)
     , !SST_Directory(label, epoch_id_inserted, val, val_rev) ]
     --[
         LessOrEqualThan(epoch_id_inserted, epoch_id_query)

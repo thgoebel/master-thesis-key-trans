@@ -10,7 +10,7 @@ begin
  * Status:      WIP
  */
 
-builtins: hashing, multiset, natural-numbers, asymmetric-encryption
+builtins: hashing, multiset, natural-numbers, asymmetric-encryption, signing
 
 /*
 This model is inspired by the TreeKEM model in [CSF23].
@@ -46,8 +46,9 @@ rule Reveal_Server_Sk:
 // TODO: server should sign the epochs
 rule Init_Server:
     let epoch_id = %1
-        chainhash = 'empty'
         roothash = 'empty'
+        chainhash = 'empty'
+        sig = sign(<epoch_id, chainhash>, sk)
     in
     [ Fr(~id)
     , !Ltk(server, sk) ]
@@ -56,7 +57,7 @@ rule Init_Server:
       , IssueEpoch(epoch_id, chainhash, roothash)
     ]->
     [ St_Server(~id, sk, epoch_id, chainhash, roothash)
-    , !SST_Epoch(epoch_id, chainhash, roothash) ]
+    , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
 
 rule Init_Auditor:
     let epoch_id = %1
