@@ -56,13 +56,14 @@ rule VerifyEpoch_1[color=#f9d949]:
 // curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
 // TODO: the API does not include any signature
 // XXX: We don't model all fields in the response, e.g. "PrevChainHash" is omitted.
+// TODO: infinite loop troubles -- interestingly they (1) started with 37fef0168617 and (2) occur when proving Executability_Query ???
 rule VerifyEpoch_2[color=#f9d949]:
     [ In(<'ve1', %epoch_id_verify>)
     , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify, sig)
-    , St_Server(id, sk, latest_epoch_id) ]
+    ]//, St_Server(id, sk, latest_epoch_id) ]
     -->
-    [ St_Server(id, sk, latest_epoch_id)
-    , Out(<'ve2', chainhash_verify, roothash_verify>) ]
+    //[ St_Server(id, sk, latest_epoch_id)
+    [ Out(<'ve2', chainhash_verify, roothash_verify>) ]
 
 // Note: This algorithm does NOT check append-only-ness.
 //       It only checks that chainhash_t is included in CT.
