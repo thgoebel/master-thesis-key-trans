@@ -31,13 +31,13 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
         epoch_id_new = %epoch_id_old %+ %1
     in
     [ In(<'insert', email, keys>)
-    , St_Server(id, %epoch_id_old, chainhash_old, roothash_old) ]
+    , St_Server(id, sk, %epoch_id_old, chainhash_old, roothash_old) ]
     --[
         IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
       , IssueEpochForInsertion(epoch_id_new, chainhash_new, email, keys)
       , Insert(email, keys)
     ]->
-    [ St_Server(id, epoch_id_new, chainhash_new, roothash_new)
+    [ St_Server(id, sk, epoch_id_new, chainhash_new, roothash_new)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new) ]
 
@@ -54,9 +54,9 @@ rule VerifyEpoch_1[color=#f9d949]:
 rule VerifyEpoch_2[color=#f9d949]:
     [ In(<'ve1', %epoch_id_verify>)
     , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify)
-    , St_Server(id, epoch_id, chainhash, roothash) ]
+    , St_Server(id, sk, epoch_id, chainhash, roothash) ]
     -->
-    [ St_Server(id, epoch_id, chainhash, roothash)
+    [ St_Server(id, sk, epoch_id, chainhash, roothash)
     , Out(<'ve2', chainhash_verify, roothash_verify>) ]
 
 // Note: This algorithm does NOT check append-only-ness.

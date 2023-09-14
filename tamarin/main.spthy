@@ -37,16 +37,25 @@ rule Init_Client:
     in
     [ Fr(~id) ] --> [ St_Client(~id, $email, keys, keys_rev) ]
 
+rule Register_Server_Pk:
+    [ Fr(~sk) ] --> [ !Ltk($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]
+
+rule Reveal_Server_Sk:
+    [ !Ltk(server, sk) ] --[ RevealServer() ]-> [ Out(sk) ]
+
 // TODO: server should sign the epochs
 rule Init_Server:
     let epoch_id = %1
         chainhash = 'empty'
         roothash = 'empty'
     in
-    [ Fr(~id) ]
-    --[ InitServer()
-      , IssueEpoch(epoch_id, chainhash, roothash) ]->
-    [ St_Server(~id, epoch_id, chainhash, roothash)
+    [ Fr(~id)
+    , !Ltk(server, sk) ]
+    --[
+        InitServer()
+      , IssueEpoch(epoch_id, chainhash, roothash)
+    ]->
+    [ St_Server(~id, sk, epoch_id, chainhash, roothash)
     , !SST_Epoch(epoch_id, chainhash, roothash) ]
 
 rule Init_Auditor:

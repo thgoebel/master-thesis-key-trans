@@ -13,7 +13,7 @@ rule Query_1[color=#c4b7ff]:
 // TODO: this allows the server to reply with any val_rev. But it should reply with the latest one!
 // TODO: what to do about this infinite loop? just keep St_Server commented out?
 rule Query_2[color=#c4b7ff]:
-    [ //St_Server(id, epoch_id, chainhash, roothash)
+    [ //St_Server(id, sk, epoch_id, chainhash, roothash)
      In(<'q1', label, epoch_id_query>)
     , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query)
     , !SST_Directory(label, epoch_id_inserted, val, val_rev) ]
@@ -21,7 +21,7 @@ rule Query_2[color=#c4b7ff]:
         LessOrEqualThan(epoch_id_inserted, epoch_id_query)
       , QueryResponse(epoch_id_query, label, val)
     ]->
-    [ //St_Server(id, epoch_id, chainhash, roothash)
+    [ //St_Server(id, sk, epoch_id, chainhash, roothash)
      Out(<'q2', val, val_rev, roothash_query>) ]
 
 rule Query_3[color=#c4b7ff]:
