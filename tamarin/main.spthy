@@ -58,6 +58,7 @@ rule Init_Server:
       , IssueEpoch(epoch_id, chainhash, roothash)
     ]->
     [ St_Server(~id, sk, latest_epoch_id)
+    , !CT(epoch_id, chainhash)
     , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
 
 rule Init_Auditor:
@@ -69,7 +70,8 @@ rule Init_Auditor:
 
 /* ------- Various Protocol Rules ------- */
 
-
+rule Adverserial_CT_Insert:
+    [ In(<epoch_id, chainhash>) ] --[ Adverserial_CT_Insert(epoch_id) ]-> [ !CT(epoch_id, chainhash) ]
 
 
 /* ------- Subprotocol Rules ------- */
@@ -84,8 +86,8 @@ rule Init_Auditor:
 restriction Eq:
     "All a b #i . Eq(a,b)@i ==> a = b"
 
-// restriction Neq:
-//     "All a b #i . Neq(a,b)@i ==> not (a = b)"
+restriction Neq:
+    "All a b #i . Neq(a,b)@i ==> not (a = b)"
 
 // The "not" part isn't needed, but let's make it explicit.
 // restriction StrictlyGreaterThan: // x > y

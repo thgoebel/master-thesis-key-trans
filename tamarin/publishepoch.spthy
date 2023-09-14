@@ -40,8 +40,10 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
       , Insert(email, keys)
     ]->
     [ St_Server(id, sk, epoch_id_new)
+    , !CT(epoch_id_new, chainhash_new)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
+
 
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
@@ -67,18 +69,33 @@ rule VerifyEpoch_2[color=#f9d949]:
 
 // Note: This algorithm does NOT check append-only-ness.
 //       It only checks that chainhash_t is included in CT.
-// TODO: check against magic bulletin board.
+//       The real implementation does this using SCTs.
+//       Note that this does NOT detect equivocation - a separate audit of CT is needed.
 // TODO: model certificate and SCT.
 rule VerifyEpoch_3[color=#f9d949]:
     let chainhash_new_computed = h(chainhash_old ++ roothash_new)
     in
     [ In(<'ve2', chainhash_new, roothash_new>)
+    , !CT(epoch_id_new, chainhash_ct)
     , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
     --[
         Eq(chainhash_new_computed, chainhash_new)
+      , Eq(chainhash_new, chainhash_ct)
       , EpochVerified(epoch_id_new, chainhash_new)
     ]->
-    [ St_Auditor(id, epoch_id_new, chainhash_new)]
+    [ St_Auditor(id, epoch_id_new, chainhash_new) ]
+
+
+/* ------- Audit CT ------- */
+
+rule Audit_CT_Equivocation[color=#eb508d]:
+    [ !CT(epoch_id, chainhash_ct_1)
+    , !CT(epoch_id, chainhash_ct_2) ]
+    --[
+        Neq(chainhash_ct_1, chainhash_ct_2)
+      , EquivocationInCt(epoch_id)
+    ]->
+    []
 
 
 /* ------- Lemmas ------- */
@@ -108,4 +125,9 @@ lemma Executability_VerifyEpoch:
         IssueEpochForInsertion(epoch_id, chainhash, email, keys)@i
         & EpochVerified(epoch_id, chainhash)@j
         & i < j
+        & not (Ex #k . Adverserial_CT_Insert(epoch_id)@k )
     "
+
+lemma Security_Non_Discreditability_CT:
+    all-traces
+    "not Ex epoch_id #i . EquivocationInCt(epoch_id)@i"
