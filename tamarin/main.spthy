@@ -41,7 +41,7 @@ rule Register_Server_Pk:
     [ Fr(~sk) ] --> [ !Ltk($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]
 
 rule Reveal_Server_Sk:
-    [ !Ltk(server, sk) ] --[ RevealServer() ]-> [ Out(sk) ]
+    [ !Ltk(server, sk) ] --[ RevealServerSk() ]-> [ Out(sk) ]
 
 // TODO: server should sign the epochs
 rule Init_Server:
@@ -54,11 +54,13 @@ rule Init_Server:
     [ Fr(~id)
     , !Ltk(server, sk) ]
     --[
-        InitServer()
+        InitServer(~id)
+      , OnlyOne('server')
       , IssueEpoch(epoch_id, chainhash, roothash)
+      , ServerEpochSign(~id, epoch_id, sig)
     ]->
     [ St_Server(~id, sk, latest_epoch_id)
-    , !CT(epoch_id, chainhash)
+    , !CT(epoch_id, chainhash, sig)
     , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
 
 rule Init_Auditor:
@@ -71,7 +73,12 @@ rule Init_Auditor:
 /* ------- Various Protocol Rules ------- */
 
 rule Adverserial_CT_Insert:
-    [ In(<epoch_id, chainhash>) ] --[ Adverserial_CT_Insert(epoch_id) ]-> [ !CT(epoch_id, chainhash) ]
+    [ In(<epoch_id, chainhash, sig>) ]
+    --[
+        Adverserial_CT_Insert(epoch_id)
+      , Adverserial_CT_Sig(sig)
+    ]->
+    [ !CT(epoch_id, chainhash, sig) ]
 
 
 /* ------- Subprotocol Rules ------- */
@@ -102,8 +109,8 @@ restriction Neq:
 restriction LessOrEqualThan: // x <= y
     "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
 
-restriction OnlyOneServer:
-    "All #i #j . InitServer()@i& InitServer()@j ==> #i = #j"
+restriction OnlyOne:
+    "All a #i #j . OnlyOne(a)@i & OnlyOne(a)@j ==> #i = #j"
 
 
 /* ------- Lemmas ------- */

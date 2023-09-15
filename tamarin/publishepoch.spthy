@@ -38,9 +38,10 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
         IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
       , IssueEpochForInsertion(epoch_id_new, chainhash_new, email, keys)
       , Insert(email, keys)
+      , ServerEpochSign(id, epoch_id_new, sig_new)
     ]->
     [ St_Server(id, sk, epoch_id_new)
-    , !CT(epoch_id_new, chainhash_new)
+    , !CT(epoch_id_new, chainhash_new, sig_new)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
 
@@ -76,7 +77,7 @@ rule VerifyEpoch_3[color=#f9d949]:
     let chainhash_new_computed = h(chainhash_old ++ roothash_new)
     in
     [ In(<'ve2', chainhash_new, roothash_new>)
-    , !CT(epoch_id_new, chainhash_ct)
+    , !CT(epoch_id_new, chainhash_ct, sig)
     , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
     --[
         Eq(chainhash_new_computed, chainhash_new)
@@ -89,16 +90,19 @@ rule VerifyEpoch_3[color=#f9d949]:
 /* ------- Audit CT ------- */
 
 rule Audit_CT_Equivocation[color=#eb508d]:
-    [ !CT(epoch_id, chainhash_ct_1)
-    , !CT(epoch_id, chainhash_ct_2) ]
+    [ !CT(epoch_id, chainhash_ct_1, sig_1)
+    , !CT(epoch_id, chainhash_ct_2, sig_2)
+    , !Pk($server, pk) ]
     --[
         Neq(chainhash_ct_1, chainhash_ct_2)
+      , Eq(verify(sig_1, <epoch_id, chainhash_ct_1>, pk), true)
+      , Eq(verify(sig_2, <epoch_id, chainhash_ct_2>, pk), true)
       , EquivocationInCt(epoch_id)
     ]->
     []
 
 
-/* ------- Lemmas ------- */
+/* ------- Executability (sanity check) Lemmas ------- */
 
 // Tell Tamarin where "keys" could have come from
 // TODO: doesn't work, still 9 partial deconstructions left
@@ -128,6 +132,34 @@ lemma Executability_VerifyEpoch:
         & not (Ex #k . Adverserial_CT_Insert(epoch_id)@k )
     "
 
-lemma Security_Non_Discreditability_CT:
+lemma Executability_ServerSignsOnlyOneChainhashPerEpochId:
     all-traces
-    "not Ex epoch_id #i . EquivocationInCt(epoch_id)@i"
+    "All id epoch_id sig_1 #i .
+        ServerEpochSign(id, epoch_id, sig_1)@i
+    ==> not (Ex sig_2 #j . ServerEpochSign(id, epoch_id, sig_2)@j & not (sig_1 = sig_2))
+    "
+
+/* ------- Security Lemmas ------- */
+
+// Helper needed to prove "Security_NonDiscreditabilityCT"
+//
+// Intuition:
+// During "Security_NonDiscreditabilityCT" Tamarin searches a path where it creates many
+// different servers, which then generate signatures and CT entries.
+// By linking the ServerEpochSign to the InitServer, we implicitly link
+// the signing back to a secret key.
+// This helps Tamarin figure out that this is a dead-end:
+// after all, the rule "Audit_CT_Equivocation" requires that they are signed by the same key.
+lemma Helper_LinkEpochSignToInitServer[use_induction,reuse]:
+    all-traces
+    "All id e s #i .
+        ServerEpochSign(id, e, s)@i
+    ==> (InitServer(id)@i)
+        | (Ex #j . InitServer(id)@j & j < i)
+    "
+
+lemma Security_NonDiscreditabilityCT:
+    all-traces
+    "All epoch_id #i . EquivocationInCt(epoch_id)@i
+        ==> Ex #j . RevealServerSk()@j & j < i
+    "
