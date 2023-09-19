@@ -3,6 +3,9 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 (also known as ProtonVKD.GetProof and ProtonVKD.VerifyProofInEpoch).
 */
 
+/* ------- VKD.Query / ProtonVKD.GetProof ------- */
+// curl -H 'x-pm-uid: XXXXX' -H 'Cookie: AUTH-XXXXX;' -H 'x-pm-appversion: web-mail@5.0.28.10' "https://mail.proton.me/api/kt/v1/epochs/300/proof/hello@thore.io" | jq
+
 rule Query_1[color=#c4b7ff]:
     [ St_Client(id, email, keys, keys_rev)
     , !SST_Epoch(epoch_id, chainhash_unused, roothash_unused, sig_unused) ] // workaround to get *a* epoch_id
@@ -27,10 +30,27 @@ rule Query_2[color=#c4b7ff]:
 rule Query_3[color=#c4b7ff]:
     [ St_Client_Query1(id, email, keys, keys_rev, label, epoch_id)
     , In(<'q2', val, val_rev, roothash>) ]
+    -->
+    [ St_Client_Query_Done(id, email, keys, keys_rev, label, epoch_id, val, val_rev, roothash) ]
+
+
+/* ------- VKD.VerifyQuery / ProtonVKD.VerifyProofInEpoch ------- */
+
+rule VerifyQuery_0[color=#c4b7ff]:
+    let stack = <'query', label, val, val_rev>
+    in
+    [ St_Client_Query_Done(id, email, keys, keys_rev, label, epoch_id, val, val_rev, roothash) ]
+    -->
+    // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
+    [ St_Client_VerifyEpoch0(id, email, keys, keys_rev, epoch_id, roothash, stack) ]
+
+rule VerifyQuery_1[color=#c4b7ff]:
+    let stack = <'query', label, val, val_rev>
+    in
+    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, stack) ]
     --[
         QueryVerified(epoch_id, label, val, val_rev, roothash)
-        // TODO: VerifyEpoch
-        // TODO: check copath to roothash
+        // TODO: check copath to roothash (aka VerifyProof)
         // TODO: check SKL signature
       ]->
     [ St_Client(id, email, keys, keys_rev) ]

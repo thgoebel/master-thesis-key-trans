@@ -48,43 +48,66 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
 
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
+// This client-side algorithm only checks that an epoch and its roothash
+// are correctly logged on a magic bulletin board.
+// Keybase uses a blockchain as the bulletin board, Proton uses CT.
+//
+// All other epoch-related checks (correct epoch-to-epoch chaining, unique epochs,
+// append-only-ness, etc.) are delegated to the auditors.
+// I.e. this does NOT detect equivocation - a separate audit of CT is needed!
+//
+// Inputs:
+// - the epoch_id of the epoch that should be checked against CT
+// - the expected root_hash (we have this from an inclusion proof)
+//
+// Steps:
+// 1. Ask the server for the PrevChainHash. Use that to construct the ChainHash.
+// 2. Check that the <EpochId, ChainHash> are logged in CT.
+//
+// Note that the "PrevChainHash" is provided by the server.
+// So it is more of a sanity check, and doesn't give real security.
+// UNLESS the clients locally stores a DB of chain hashes (which it currently doesn't?).
+
 rule VerifyEpoch_1[color=#f9d949]:
-    let epoch_id_new = %epoch_id_old %+ %1
-    in
-    [ St_Auditor(id, %epoch_id_old, chainhash_old) ]
+    // The "stack" is used to cache variables that VKD.VerifyEpoch ignores,
+    // but that the caller needs to get back.
+    // It should be a tuple <'callername', data> so that there is no type confusion in the data.
+    [ St_Client_VerifyEpoch0(id, email, keys, keys_rev, %epoch_id_to_verify, expected_root_hash, stack) ]
     -->
-    [ St_Auditor_VerifyEpoch1(id, %epoch_id_old, chainhash_old, epoch_id_new)
-    , Out(<'ve1', epoch_id_new>) ]
+    [ St_Client_VerifyEpoch1(id, email, keys, keys_rev, %epoch_id_to_verify, expected_root_hash, stack)
+    , Out(<'ve1', %epoch_id_to_verify>) ]
 
 // curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
-// TODO: the API does not include any signature
-// XXX: We don't model all fields in the response, e.g. "PrevChainHash" is omitted.
+// TODO: the API does not return any signature
 // TODO: infinite loop troubles -- interestingly they (1) started with 37fef0168617 and (2) occur when proving Executability_Query ???
 rule VerifyEpoch_2[color=#f9d949]:
+    let epoch_id_verify = %epoch_id_verify_prev %+ %1 // workaround for %-
+    in
     [ In(<'ve1', %epoch_id_verify>)
-    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify, sig)
+    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify, sig_verify)
+    , !SST_Epoch(%epoch_id_prev, chainhash_prev, roothash_prev, sig_prev)
     ]//, St_Server(id, sk, latest_epoch_id) ]
     -->
     //[ St_Server(id, sk, latest_epoch_id)
-    [ Out(<'ve2', chainhash_verify, roothash_verify>) ]
+    [ Out(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>) ]
 
-// Note: This algorithm does NOT check append-only-ness.
-//       It only checks that chainhash_t is included in CT.
-//       The real implementation does this using SCTs.
-//       Note that this does NOT detect equivocation - a separate audit of CT is needed.
-// TODO: model certificate and SCT.
 rule VerifyEpoch_3[color=#f9d949]:
-    let chainhash_new_computed = h(chainhash_old ++ roothash_new)
+    let chainhash_new_computed = h(chainhash_prev ++ expected_root_hash)
     in
-    [ In(<'ve2', chainhash_new, roothash_new>)
-    , !CT(epoch_id_new, chainhash_ct, sig)
-    , St_Auditor_VerifyEpoch1(id, epoch_id_old, chainhash_old, epoch_id_new) ]
+    [ In(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>)
+    // make the CT chainhash explictly different and check for equality below
+    // (for clarity when comparing against the implementation)
+    // TODO: model certificate and SCT in detail?
+    , !CT(epoch_id_to_verify, chainhash_ct, sig)
+    , St_Client_VerifyEpoch1(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
     --[
-        Eq(chainhash_new_computed, chainhash_new)
-      , Eq(chainhash_new, chainhash_ct)
-      , EpochVerified(epoch_id_new, chainhash_new)
+        Eq(expected_root_hash, roothash_verify)
+      , Eq(chainhash_new_computed, chainhash_verify)
+      , Eq(chainhash_new_computed, chainhash_ct)
+      , EpochVerified(epoch_id_to_verify, chainhash_new_computed)
+      // TODO: verify CT signature?
     ]->
-    [ St_Auditor(id, epoch_id_new, chainhash_new) ]
+    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
 
 
 /* ------- Audit CT ------- */
