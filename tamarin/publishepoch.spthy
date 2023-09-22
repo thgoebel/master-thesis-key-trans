@@ -28,7 +28,7 @@ rule ClientKeyGen:
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     let epoch_id_new = %latest_epoch_id %+ %1
         roothash_new = 'todo'
-        chainhash_new = h(chainhash_old ++ roothash_new)
+        chainhash_new = h(<chainhash_old, roothash_new>)
         sig_new = sign(<epoch_id_new, chainhash_new>, sk)
     in
     [ In(<'insert', email, keys>)
@@ -92,7 +92,7 @@ rule VerifyEpoch_2[color=#f9d949]:
     [ Out(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>) ]
 
 rule VerifyEpoch_3[color=#f9d949]:
-    let chainhash_new_computed = h(chainhash_prev ++ expected_root_hash)
+    let chainhash_new_computed = h(<chainhash_prev, expected_root_hash>)
     in
     [ In(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>)
     // make the CT chainhash explictly different and check for equality below
