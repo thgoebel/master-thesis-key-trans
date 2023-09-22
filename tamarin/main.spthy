@@ -42,10 +42,10 @@ rule Init_Client:
     [ Fr(~id) ] --> [ St_Client(~id, $email, keys, keys_rev) ]
 
 rule Register_Server_Pk:
-    [ Fr(~sk) ] --> [ !Ltk($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]
+    [ Fr(~sk) ] --> [ !LtkServer($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]
 
 rule Reveal_Server_Sk:
-    [ !Ltk(server, sk) ] --[ RevealServerSk() ]-> [ Out(sk) ]
+    [ !LtkServer(server, sk) ] --[ RevealServerSk() ]-> [ Out(sk) ]
 
 rule Init_Server:
     let epoch_id = %1
@@ -55,7 +55,7 @@ rule Init_Server:
         sig = sign(<epoch_id, chainhash>, sk)
     in
     [ Fr(~id)
-    , !Ltk(server, sk) ]
+    , !LtkServer(server, sk) ]
     --[
         InitServer(~id)
       , OnlyOne('server')
