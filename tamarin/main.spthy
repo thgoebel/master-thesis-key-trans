@@ -22,6 +22,11 @@ We model Certificate Transparency through persistent facts !CT
 that both the server and the adversary can write,
 and the the auditor can read.
 
+We model the KT tree as persitent facts !TreeLeaf.
+When !TreeLeaf appears in the premise of a rule, applying this rule
+implicitly means that the inclusion proof for this leaf has been checked
+(i.e. the co-path from the leaf to the root).
+
 ## Limitations
 
 See the various TODOs throughout.

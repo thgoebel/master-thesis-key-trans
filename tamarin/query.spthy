@@ -8,10 +8,10 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 
 rule Query_1[color=#c4b7ff]:
     [ St_Client(id, email, keys, keys_rev)
-    , !SST_Epoch(epoch_id, chainhash_unused, roothash_unused, sig_unused) ] // workaround to get *a* epoch_id
+    , In(%epoch_id) ] // workaround to get *a* epoch_id in the premise
     -->
-    [ St_Client_Query1(id, email, keys, keys_rev, $label, epoch_id)
-    , Out(<'q1', $label, epoch_id>) ]
+    [ St_Client_Query1(id, email, keys, keys_rev, $label, %epoch_id)
+    , Out(<'q1', $label, %epoch_id>) ]
 
 // TODO: this allows the server to reply with any val_rev. But it should reply with the latest one!
 // TODO: what to do about this infinite loop? just keep St_Server commented out?
@@ -36,25 +36,32 @@ rule Query_3[color=#c4b7ff]:
 
 /* ------- VKD.VerifyQuery / ProtonVKD.VerifyProofInEpoch ------- */
 
-rule VerifyQuery_0[color=#c4b7ff]:
-    let stack = <'query', label, val, val_rev>
+rule VerifyQuery_0[color=#f9d949]:
+    let stack = <'query_verify_epoch', label, val, val_rev>
     in
     [ St_Client_Query_Done(id, email, keys, keys_rev, label, epoch_id, val, val_rev, roothash) ]
     -->
     // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
     [ St_Client_VerifyEpoch0(id, email, keys, keys_rev, epoch_id, roothash, stack) ]
 
-rule VerifyQuery_1[color=#c4b7ff]:
-    let stack = <'query', label, val, val_rev>
+rule VerifyQuery_1[color=#f9d949]:
+    let stack_e = <'query_verify_epoch', label, val, val_rev>
     in
-    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, stack) ]
+    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, stack_e)
+    , !TreeLeaf(email, keys) // implicit ProtonVKD.VerifyProof call
+    ]
     --[
         QueryVerified(epoch_id, label, val, val_rev, roothash)
-        // TODO: check copath to roothash (aka VerifyProof)
         // TODO: check SKL signature
-      ]->
+    ]->
     [ St_Client(id, email, keys, keys_rev) ]
 
+
+/* ------- ProtonVKD.VerifyProof ------- */
+// Checks the copath to roothash, i.e. the inclusion/absence proof
+
+// XXX: This algorithm is not modeled explicitly.
+//      It is implicit in using the !TreeLeaf fact,
 
 /* ------- Lemmas ------- */
 

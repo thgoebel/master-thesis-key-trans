@@ -38,6 +38,8 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     ]->
     [ St_Server(id, sk, epoch_id_new)
     , !CT(epoch_id_new, chainhash_new, sig_new)
+    // TODO: Model private index calculation with VRF (instead of using the email)
+    , !TreeLeaf(email, keys)
     , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
 
