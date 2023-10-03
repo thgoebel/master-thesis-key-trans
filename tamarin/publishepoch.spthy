@@ -6,23 +6,19 @@ and the ProtonVKD.VerifyEpoch subprotocols
 /* ------- VKD.Publish ------- */
 
 // TODO: distinguish between the normal keylist and the not-yet-included keylist?
-// TODO: pk/sk
+// TODO: model keylists/keyrings rather than a single pk
 rule ClientKeyGen:
-    let keys_new = keys ++ ~newkey
+    let keys_new = keys ++ ~sk_new
         keys_rev_new = %keys_rev %+ %1
     in
-    [ Fr(~newkey)
+    [ Fr(~sk_new)
     , St_Client(id, $email, keys, %keys_rev) ]
     --[
         ClientKeyGen($email, keys, keys_new)
-      , RequestInsertion($email, keys_new)
+      , RequestInsertion($email, pk(~sk_new))
     ]->
     [ St_Client(id, $email, keys_new, keys_rev_new)
-    , Out(<'insert', $email, ~newkey>) ]
-    // XXX: Tamarin has troubles with the below (partial deconstructions).
-    //      As a workaround, only send the newkey instead of the entire keylist
-    //      (i.e. the client can have at most one key at a time).
-    //, Out(<'insert', $email, keys_new>) ]
+    , Out(<'insert', $email, pk(~sk_new)>) ]
 
 // TODO: model aggregation into batches (instead of one epoch per key)
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
