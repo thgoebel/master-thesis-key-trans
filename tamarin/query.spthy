@@ -48,7 +48,7 @@ rule VerifyQuery_1[color=#f9d949]:
     let stack_e = <'query_verify_epoch', label, val, val_rev>
     in
     [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, stack_e)
-    , !TreeLeaf(email, keys) // implicit ProtonVKD.VerifyProof call
+    , !TreeLeaf(label, val) // implicit ProtonVKD.VerifyProof call
     ]
     --[
         QueryVerified(epoch_id, label, val, val_rev, roothash)
@@ -78,4 +78,35 @@ lemma Executability_Query:
         QueryResponse(epoch_id, label, val)@i
         & QueryVerified(epoch_id, label, val, val_rev, roothash)@j
         & i < j
+    "
+
+lemma Helper_Ordering_QueryVerified [reuse]:
+    all-traces
+    "All epoch_id label val rev roothash #i .
+        QueryVerified(epoch_id, label, val, rev, roothash)@i
+        ==>
+        (Ex #j . Insert(label, val)@j & j < i )
+    "
+
+// TODO: iterative modeling - remove me
+restriction NoKeyUpdates:
+    "All label val1 val2 #i1 #i2 .
+          Insert(label, val1)@i1
+        & Insert(label, val2)@i2
+        ==>
+          val1 = val2
+        & #i1 = #i1
+    "
+
+// XXX: no outcome type, i.e. only inclusion for now (no absence/obsolence)
+lemma QueryConsistency:
+    all-traces
+    "All epoch_id label val1 rev1 val2 rev2 roothash1 roothash2 #i1 #i2 .
+          QueryVerified(epoch_id, label, val1, rev1, roothash1)@i1
+        & QueryVerified(epoch_id, label, val2, rev2, roothash2)@i2
+        & roothash1 = roothash2
+        ==>
+          val1 = val2
+        // TODO: NoKeyUpdates yet
+        // & rev1 = rev2
     "
