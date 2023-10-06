@@ -1,0 +1,75 @@
+
+/* ------- ProtonVKD.VerifyEpoch ------- */
+
+// This client-side algorithm only checks that an epoch and its roothash
+// are correctly logged on a magic bulletin board.
+// Keybase uses a blockchain as the bulletin board, Proton uses CT.
+//
+// All other epoch-related checks (correct epoch-to-epoch chaining, unique epochs,
+// append-only-ness, etc.) are delegated to the auditors.
+// I.e. this does NOT detect equivocation - a separate audit of CT is needed!
+//
+// Inputs:
+// - the epoch_id of the epoch that should be checked against CT
+// - the expected root_hash (we have this from an inclusion proof)
+//
+// Steps:
+// 1. Ask the server for the PrevChainHash. Use that to construct the ChainHash.
+// 2. Check that the <EpochId, ChainHash> are logged in CT.
+//
+// Note that the "PrevChainHash" is provided by the server.
+// So it is more of a sanity check, and doesn't give real security.
+// UNLESS the clients locally stores a DB of chain hashes (which it currently doesn't?).
+
+rule VerifyEpoch_1[color=#f9d949]:
+    // The "stack" is used to cache variables that VKD.VerifyEpoch ignores,
+    // but that the caller needs to get back.
+    // It should be a tuple <'callername', data> so that there is no type confusion in the data.
+    [ St_Client_VerifyEpoch0(id, email, keys, keys_rev, %epoch_id_to_verify, expected_root_hash, stack) ]
+    -->
+    [ St_Client_VerifyEpoch1(id, email, keys, keys_rev, %epoch_id_to_verify, expected_root_hash, stack)
+    , Out(<'ve1', %epoch_id_to_verify>) ]
+
+// curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
+// TODO: the API does not return any signature
+// TODO: infinite loop troubles -- interestingly they (1) started with 37fef0168617 and (2) occur when proving Executability_Query ???
+rule VerifyEpoch_2[color=#f9d949]:
+    let epoch_id_verify = %epoch_id_verify_prev %+ %1 // workaround for %-
+    in
+    [ In(<'ve1', %epoch_id_verify>)
+    , !SST_Epoch(%epoch_id_verify, chainhash_verify, roothash_verify, sig_verify)
+    , !SST_Epoch(%epoch_id_prev, chainhash_prev, roothash_prev, sig_prev)
+    ]//, St_Server(id, sk, latest_epoch_id) ]
+    -->
+    //[ St_Server(id, sk, latest_epoch_id)
+    [ Out(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>) ]
+
+rule VerifyEpoch_3[color=#f9d949]:
+    let chainhash_new_computed = h(<chainhash_prev, expected_root_hash>)
+    in
+    [ In(<'ve2', chainhash_prev, chainhash_verify, roothash_verify>)
+    // make the CT chainhash explictly different and check for equality below
+    // (for clarity when comparing against the implementation)
+    // TODO: model certificate and SCT in detail?
+    , !CT(epoch_id_to_verify, chainhash_ct, sig)
+    , St_Client_VerifyEpoch1(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
+    --[
+        Eq(expected_root_hash, roothash_verify)
+      , Eq(chainhash_new_computed, chainhash_verify)
+      , Eq(chainhash_new_computed, chainhash_ct)
+      , EpochVerified(epoch_id_to_verify, chainhash_new_computed)
+      // TODO: verify CT signature?
+    ]->
+    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
+
+
+/* ------- Executability (sanity check) Lemmas ------- */
+
+lemma Executability_VerifyEpoch:
+    exists-trace
+    "Ex epoch_id chainhash #i #j .
+        IssueEpoch(epoch_id, chainhash)@i
+        & EpochVerified(epoch_id, chainhash)@j
+        & i < j
+        & not (Ex #k . Adverserial_CT_Insert(epoch_id)@k )
+    "

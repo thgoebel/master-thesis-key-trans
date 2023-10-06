@@ -92,6 +92,7 @@ rule Adverserial_CT_Insert:
 /* ------- Subprotocol Rules ------- */
 
 #include "publishepoch.spthy"
+#include "verifyepoch.spthy"
 #include "query.spthy"
 #include "selfaudit.spthy"
 
