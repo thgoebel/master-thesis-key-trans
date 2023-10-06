@@ -14,34 +14,50 @@ rule ClientKeyGen:
     [ Fr(~sk_new)
     , St_Client(id, $email, keys, %keys_rev) ]
     --[
-        ClientKeyGen($email, keys, keys_new)
-      , RequestInsertion($email, pk(~sk_new))
+        RequestInsertion($email, pk(~sk_new))
     ]->
     [ St_Client(id, $email, keys_new, keys_rev_new)
     , Out(<'insert', $email, pk(~sk_new)>) ]
 
-// TODO: model aggregation into batches (instead of one epoch per key)
+// XXX: aggregation into batches (instead of one epoch per key) is not modelled
 rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     let epoch_id_new = %latest_epoch_id %+ %1
         roothash_new = 'todo'
         chainhash_new = h(<chainhash_old, roothash_new>)
         sig_new = sign(<epoch_id_new, chainhash_new>, sk)
+
+        %rev_new = %rev_old %+ %1
     in
-    [ In(<'insert', email, keys>)
+    [ In(<'insert', label, val>)
+    , !TreeLeaf(label, val_old, %rev_old)
     , !SST_Epoch(%latest_epoch_id, chainhash_old, roothash_old, sig_old)
     , St_Server(id, sk, %latest_epoch_id) ]
     --[
-        IssueEpoch(epoch_id_new, chainhash_new, roothash_new)
-      , IssueEpochForInsertion(epoch_id_new, chainhash_new, email, keys)
-      , Insert(email, keys)
+        IssueEpoch(epoch_id_new, chainhash_new)
       , ServerEpochSign(id, epoch_id_new, sig_new)
+      , Insert(label, val, %rev_new)
+      , IsLatestRevision(label, %rev_old)
     ]->
     [ St_Server(id, sk, epoch_id_new)
     , !CT(epoch_id_new, chainhash_new, sig_new)
-    // TODO: Model private index calculation with VRF (instead of using the email)
-    , !TreeLeaf(email, keys)
-    , !SST_Directory(email, epoch_id_new, keys, %1)  // TODO: val_rev
+    , !TreeLeaf(label, val, %rev_new)
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
+
+// Initialise the tree leaf for any label.
+// This allows both absence proofs (TODO: implement)
+// and it serves as the basis for the revision that is incremented with each key update.
+//
+// TODO: Model private index calculation with VRF (instead of using the label/email)
+rule Init_Tree_Leaf:
+    let val = 'emptyleaf'
+        rev = %1
+    in
+    []
+    --[
+        Insert($label, val, rev)
+      , OnlyOne($label) // restrict to only one initial leaf
+    ]->
+    [ !TreeLeaf($label, val, rev) ]
 
 
 /* ------- ProtonVKD.VerifyEpoch ------- */
@@ -123,31 +139,34 @@ rule Audit_CT_Equivocation[color=#eb508d]:
     []
 
 
-/* ------- Executability (sanity check) Lemmas ------- */
+/* ------- Restrictions ------- */
 
-// Tell Tamarin where "keys" could have come from
-// TODO: doesn't work, still 9 partial deconstructions left
-// TODO: use subterms??
-// lemma Type_ClientKeyGen_Keys [use_induction,sources]:
-//     all-traces
-//     "All email prevkeylist newkeylist #i .
-//         ClientKeyGen(email, prevkeylist, newkeylist)@i
-//       ==> ( Ex prevprevkeylist #j . ClientKeyGen(email, prevprevkeylist, prevkeylist)@j & j < i )
-//          | ( prevkeylist = 'empty')
-//     "
+restriction IsLatestRevision:
+    "All label rev1 #i .
+        IsLatestRevision(label, rev1)@i
+        ==>
+        not (Ex val2 rev2 #j .
+                Insert(label, val2, rev2)@j
+                & j < i
+                & rev1 << rev2 & not (rev1 = rev2)
+            )
+    "
+
+
+/* ------- Executability (sanity check) Lemmas ------- */
 
 lemma Executability_PublishEpoch:
     exists-trace
-    "Ex email keys epoch_id chainhash #i #j .
+    "Ex email keys rev #i #j .
         RequestInsertion(email, keys)@i
-        & IssueEpochForInsertion(epoch_id, chainhash, email, keys)@j
+        & Insert(email, keys, rev)@j
         & i < j
     "
 
 lemma Executability_VerifyEpoch:
     exists-trace
-    "Ex epoch_id email keys chainhash #i #j .
-        IssueEpochForInsertion(epoch_id, chainhash, email, keys)@i
+    "Ex epoch_id chainhash #i #j .
+        IssueEpoch(epoch_id, chainhash)@i
         & EpochVerified(epoch_id, chainhash)@j
         & i < j
         & not (Ex #k . Adverserial_CT_Insert(epoch_id)@k )
