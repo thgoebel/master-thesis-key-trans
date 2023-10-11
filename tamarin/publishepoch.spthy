@@ -7,6 +7,7 @@ and the ProtonVKD.VerifyEpoch subprotocols
 
 // TODO: distinguish between the normal keylist and the not-yet-included keylist?
 // TODO: model keylists/keyrings rather than a single pk
+// XXX: aggregation into batches (instead of one epoch per key) is not modelled
 rule ClientKeyGen:
     let keys_new = keys ++ ~sk_new
         keys_rev_new = %keys_rev %+ %1
@@ -17,49 +18,7 @@ rule ClientKeyGen:
         RequestInsertion($email, pk(~sk_new))
     ]->
     [ St_Client(id, $email, keys_new, keys_rev_new)
-    , Out(<'insert', $email, pk(~sk_new)>) ]
-
-// XXX: aggregation into batches (instead of one epoch per key) is not modelled
-rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
-    let epoch_id_new = %latest_epoch_id %+ %1
-        roothash_new = 'todo'
-        chainhash_new = h(<chainhash_old, roothash_new>)
-        sig_new = sign(<epoch_id_new, chainhash_new>, sk)
-
-        %rev_new = %rev_old %+ %1
-        %min_epoch_id_new = epoch_id_new
-    in
-    [ In(<'insert', label, val>)
-    , !TreeLeaf(label, val_old, %rev_old, %min_epoch_id_old)
-    , !SST_Epoch(%latest_epoch_id, chainhash_old, roothash_old, sig_old)
-    , St_Server(id, sk, %latest_epoch_id) ]
-    --[
-        IssueEpoch(epoch_id_new, chainhash_new)
-      , ServerEpochSign(id, epoch_id_new, sig_new)
-      , Insert(label, val, %rev_new)
-      , IsLatestRevision(label, %rev_old)
-    ]->
-    [ St_Server(id, sk, epoch_id_new)
-    , !CT(epoch_id_new, chainhash_new, sig_new)
-    , !TreeLeaf(label, val, %rev_new, %min_epoch_id_new)
-    , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
-
-// Initialise the tree leaf for any label.
-// This allows both absence proofs (TODO: implement)
-// and it serves as the basis for the revision that is incremented with each key update.
-//
-// TODO: Model private index calculation with VRF (instead of using the label/email)
-rule Init_Tree_Leaf:
-    let val = 'emptyleaf'
-        rev = %1
-        min_epoch_id = %1
-    in
-    []
-    --[
-        Insert($label, val, rev)
-      , OnlyOne($label) // restrict to only one initial leaf
-    ]->
-    [ !TreeLeaf($label, val, rev, min_epoch_id) ]
+    , Out(<$email, pk(~sk_new)>) ]
 
 
 /* ------- Audit CT ------- */
@@ -77,36 +36,63 @@ rule Audit_CT_Equivocation[color=#eb508d]:
     []
 
 
-/* ------- Restrictions ------- */
-
-restriction IsLatestRevision:
-    "All label rev1 #i .
-        IsLatestRevision(label, rev1)@i
-        ==>
-        not (Ex val2 rev2 #j .
-                Insert(label, val2, rev2)@j
-                & j < i
-                & rev1 << rev2 & not (rev1 = rev2)
-            )
-    "
-
-
 /* ------- Executability (sanity check) Lemmas ------- */
 
-lemma Executability_PublishEpoch:
+lemma Basic_Executability:
     exists-trace
-    "Ex email keys rev #i #j .
-        RequestInsertion(email, keys)@i
-        & Insert(email, keys, rev)@j
+    "Ex label val rev roothash #i #j #k .
+          RequestInsertion(label, val)@i
+        & Query(label)@j
+        & QueryVerified(label, val, rev, roothash)@k
         & i < j
+        & j < k
     "
 
-lemma Executability_ServerSignsOnlyOneChainhashPerEpochId:
-    all-traces
-    "All id epoch_id sig_1 #i .
-        ServerEpochSign(id, epoch_id, sig_1)@i
-    ==> not (Ex sig_2 #j . ServerEpochSign(id, epoch_id, sig_2)@j & not (sig_1 = sig_2))
+// Check that the protocol can append to the user subtree
+lemma Executability_NewRevision:
+    exists-trace
+    "Ex label val1 rev1 roothash1 ut1 #i1 #j1 #k1
+              val2 rev2 roothash2 ut2 #i2 #j2 #k2 .
+          RequestInsertion(label, val1)@i1
+        & Query(label)@j1
+        // & QueryVerified(label, val1, rev1, roothash1)@k1
+        & QueryVerifiedUserTree(label, val1, rev1, roothash1, ut1)@k1
+        & i1 < j1
+        & j1 < k1
+        & RequestInsertion(label, val2)@i2
+        & Query(label)@j2
+        // & QueryVerified(label, val2, rev2, roothash2)@k2
+        & QueryVerifiedUserTree(label, val2, rev2, roothash2, ut2)@k2
+        & i2 < j2
+        & j2 < k2
+        & not (val1 = val2)
+        & rev1 << rev2
+        & roothash1 << roothash2
+        & ut1 << ut2
+        // trim the example trace
+        & not ( Ex val3 #i3 . RequestInsertion(label, val3)@i3 & not (val3 = val1 | val3 = val2) )
+        & not ( Ex label3 val3 #i3 . RequestInsertion(label3, val3)@i3 & not (label3 = label) )
     "
+
+// Check that the protocol can insert two distinct users into the same tree
+lemma Executability_TwoLabelsInSameTree:
+    exists-trace
+    "Ex roothash label1 val1 rev1 #i1 #j1 #k1
+                 label2 val2 rev2 #i2 #j2 #k2 .
+          RequestInsertion(label1, val1)@i1
+        & Query(label1)@j1
+        & QueryVerified(label1, val1, rev1, roothash)@k1
+        & i1 < j1
+        & j1 < k1
+        & RequestInsertion(label2, val2)@i2
+        & Query(label2)@j2
+        & QueryVerified(label2, val2, rev2, roothash)@k2
+        & i2 < j2
+        & j2 < k2
+        & not (label1 = label2)
+        & not (val1 = val2)
+    "
+
 
 /* ------- Security Lemmas ------- */
 

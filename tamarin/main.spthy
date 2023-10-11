@@ -52,40 +52,32 @@ rule Register_Server_Pk:
 rule Reveal_Server_Sk:
     [ !LtkServer(server, sk) ] --[ RevealServerSk() ]-> [ Out(sk) ]
 
-rule Init_Server:
-    let epoch_id = %1
-        latest_epoch_id = epoch_id
-        roothash = 'empty'
-        chainhash = 'empty'
-        sig = sign(<epoch_id, chainhash>, sk)
-    in
-    [ Fr(~id)
-    , !LtkServer(server, sk) ]
-    --[
-        InitServer(~id)
-      , OnlyOne('server')
-      , IssueEpoch(epoch_id, chainhash)
-      , ServerEpochSign(~id, epoch_id, sig)
-    ]->
-    [ St_Server(~id, sk, latest_epoch_id)
-    , !CT(epoch_id, chainhash, sig)
-    , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
-
-rule Init_Auditor:
-    let epoch_id = %1
-        chainhash = 'empty'
-    in
-    [ Fr(~id) ] --> [ St_Auditor(~id, epoch_id, chainhash) ]
+// rule Init_Server:
+//     let epoch_id = %1
+//         latest_epoch_id = epoch_id
+//         roothash = 'empty'
+//         chainhash = 'empty'
+//         sig = sign(<epoch_id, chainhash>, sk)
+//     in
+//     [ Fr(~id)
+//     , !LtkServer(server, sk) ]
+//     --[
+//         InitServer(~id)
+//       , OnlyOne('server')
+//       , IssueEpoch(epoch_id, chainhash)
+//       , ServerEpochSign(~id, epoch_id, sig)
+//     ]->
+//     [ St_Server(~id, sk, latest_epoch_id)
+//     , !CT(epoch_id, chainhash, sig)
+//     , !SST_Epoch(epoch_id, chainhash, roothash, sig) ]
 
 
 /* ------- Various Protocol Rules ------- */
 
-rule Adverserial_CT_Insert:
+// Anyone can insert into CT. Only upong CT audits the signature will be checked.
+rule CT_Insert:
     [ In(<epoch_id, chainhash, sig>) ]
-    --[
-        Adverserial_CT_Insert(epoch_id)
-      , Adverserial_CT_Sig(sig)
-    ]->
+    -->
     [ !CT(epoch_id, chainhash, sig) ]
 
 
@@ -115,8 +107,8 @@ restriction Neq:
 // restriction GreaterOrEqualThan: // x >= y
 //     "All x y #i . GreaterOrEqualThan(x,y)@i ==> y << x | x = y"
 
-restriction LessOrEqualThan: // x <= y
-    "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
+// restriction LessOrEqualThan: // x <= y
+//     "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
 
 restriction OnlyOne:
     "All a #i #j . OnlyOne(a)@i & OnlyOne(a)@j ==> #i = #j"
