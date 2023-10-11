@@ -115,8 +115,8 @@ restriction Neq:
 // restriction GreaterOrEqualThan: // x >= y
 //     "All x y #i . GreaterOrEqualThan(x,y)@i ==> y << x | x = y"
 
-// restriction LessOrEqualThan: // x <= y
-//     "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
+restriction LessOrEqualThan: // x <= y
+    "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
 
 restriction OnlyOne:
     "All a #i #j . OnlyOne(a)@i & OnlyOne(a)@j ==> #i = #j"

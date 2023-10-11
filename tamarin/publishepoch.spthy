@@ -27,9 +27,10 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
         sig_new = sign(<epoch_id_new, chainhash_new>, sk)
 
         %rev_new = %rev_old %+ %1
+        %min_epoch_id_new = epoch_id_new
     in
     [ In(<'insert', label, val>)
-    , !TreeLeaf(label, val_old, %rev_old)
+    , !TreeLeaf(label, val_old, %rev_old, %min_epoch_id_old)
     , !SST_Epoch(%latest_epoch_id, chainhash_old, roothash_old, sig_old)
     , St_Server(id, sk, %latest_epoch_id) ]
     --[
@@ -40,7 +41,7 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
     ]->
     [ St_Server(id, sk, epoch_id_new)
     , !CT(epoch_id_new, chainhash_new, sig_new)
-    , !TreeLeaf(label, val, %rev_new)
+    , !TreeLeaf(label, val, %rev_new, %min_epoch_id_new)
     , !SST_Epoch(epoch_id_new, chainhash_new, roothash_new, sig_new) ]
 
 // Initialise the tree leaf for any label.
@@ -51,13 +52,14 @@ rule ReceiveInsertAndIssueEpoch[color=#6d4af6]:
 rule Init_Tree_Leaf:
     let val = 'emptyleaf'
         rev = %1
+        min_epoch_id = %1
     in
     []
     --[
         Insert($label, val, rev)
       , OnlyOne($label) // restrict to only one initial leaf
     ]->
-    [ !TreeLeaf($label, val, rev) ]
+    [ !TreeLeaf($label, val, rev, min_epoch_id) ]
 
 
 /* ------- Audit CT ------- */

@@ -18,7 +18,7 @@ rule Query_2[color=#c4b7ff]:
     [ //St_Server(id, sk, latest_epoch_id)
      In(<'q1', label, epoch_id_query>)
     , !SST_Epoch(epoch_id_query, chainhash_query, roothash_query, sig)
-    , !TreeLeaf(label, val, rev) ]
+    , !TreeLeaf(label, val, rev, min_epoch_id) ]
     --[
         QueryResponse(epoch_id_query, label, val, rev)
       , IsLatestRevision(label, rev)
@@ -47,11 +47,12 @@ rule VerifyQuery_1[color=#f9d949]:
     let stack_e = <'query_verify_epoch', label, val, rev>
     in
     [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, stack_e)
-    , !TreeLeaf(label, val, rev) // implicit ProtonVKD.VerifyProof call
+    , !TreeLeaf(label, val, rev, min_epoch_id) // implicit ProtonVKD.VerifyProof call
     ]
     --[
         QueryVerified(epoch_id, label, val, rev, roothash)
       , IsLatestRevision(label, rev)
+      , LessOrEqualThan(min_epoch_id, epoch_id)
         // TODO: check minEpochId
         // TODO: check SKL signature
     ]->
@@ -106,14 +107,15 @@ lemma Helper_Ordering_QueryVerified [reuse]:
     "
 
 // XXX: no outcome type, i.e. only inclusion for now (no absence/obsolence)
+// Holds, generating proof takes ~30 mins
 lemma QueryConsistency:
     all-traces
     "All epoch_id label val1 rev1 val2 rev2 roothash1 roothash2 #i1 #i2 .
           QueryVerified(epoch_id, label, val1, rev1, roothash1)@i1
         & QueryVerified(epoch_id, label, val2, rev2, roothash2)@i2
         & roothash1 = roothash2
+        & not (Ex #r . RevealServerSk()@r & r < i1 & r < i2)
         ==>
           val1 = val2
-        // TODO: the blows up
         & rev1 = rev2
     "

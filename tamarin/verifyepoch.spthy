@@ -52,13 +52,14 @@ rule VerifyEpoch_3[color=#f9d949]:
     // (for clarity when comparing against the implementation)
     // TODO: model certificate and SCT in detail?
     , !CT(epoch_id_to_verify, chainhash_ct, sig)
+    , !Pk($server, pk)
     , St_Client_VerifyEpoch1(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
     --[
         Eq(expected_root_hash, roothash_verify)
       , Eq(chainhash_new_computed, chainhash_verify)
       , Eq(chainhash_new_computed, chainhash_ct)
+      , Eq(verify(sig, <epoch_id_to_verify, chainhash_ct>, pk), true)
       , EpochVerified(epoch_id_to_verify, chainhash_new_computed)
-      // TODO: verify CT signature?
     ]->
     [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id_to_verify, expected_root_hash, stack) ]
 
