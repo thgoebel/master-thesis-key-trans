@@ -10,26 +10,19 @@ begin
  * Status:      WIP
  */
 
-builtins: hashing, multiset, natural-numbers, asymmetric-encryption, signing
+builtins: hashing, natural-numbers, asymmetric-encryption, signing
 
 /*
 This model is inspired by the TreeKEM model in [CSF23].
-
-The persistent facts prefixed by "SST_" are "Server State"
-and they should only be used by server rules.
 
 We model Certificate Transparency through persistent facts !CT
 that both the server and the adversary can write,
 and the the auditor can read.
 
-We model the KT tree as persitent facts !TreeLeaf.
-When !TreeLeaf appears in the premise of a rule, applying this rule
-implicitly means that the inclusion proof for this leaf has been checked
-(i.e. the co-path from the leaf to the root).
-
 ## Limitations
 
-See the various TODOs throughout.
+Intentional modeling simplifications are noted as XXX.
+Ideas for future modeling improvements are noted as TODO.
 
 ## References
 
@@ -41,10 +34,9 @@ See the various TODOs throughout.
 
 // TODO: support multiple email per account as tuples of <email, keylist>
 rule Init_Client:
-    let keys = 'empty'
-        keys_rev = %1
+    let keys = < <%1, 'empty'>, 'rest'>
     in
-    [ Fr(~id) ] --> [ St_Client(~id, $email, keys, keys_rev) ]
+    [ Fr(~id) ] --> [ St_Client(~id, $email, keys) ]
 
 rule Register_Server_Pk:
     [ Fr(~sk) ] --> [ !LtkServer($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]

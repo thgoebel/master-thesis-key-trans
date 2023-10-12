@@ -1,23 +1,21 @@
 /*
-This file contains the Email Address Key generation, the VKD.Publish,
-and the ProtonVKD.VerifyEpoch subprotocols
+This file contains the Email Address Key generation and the VKD.Publish subprotocol
 */
 
 /* ------- VKD.Publish ------- */
 
-// TODO: distinguish between the normal keylist and the not-yet-included keylist?
-// TODO: model keylists/keyrings rather than a single pk
+// XXX: we insert a single pk per leaf/per revision (rather than an SKL with multiple pks)
 // XXX: aggregation into batches (instead of one epoch per key) is not modelled
 rule ClientKeyGen:
-    let keys_new = keys ++ ~sk_new
-        keys_rev_new = %keys_rev %+ %1
+    let keys_old = <                                <%rev_old, val_old>, rest >
+        keys_new = < <%rev_old %+ %1, pk(~sk_new)>, <%rev_old, val_old>, rest >
     in
     [ Fr(~sk_new)
-    , St_Client(id, $email, keys, %keys_rev) ]
+    , St_Client(id, $email, keys_old) ]
     --[
         RequestInsertion($email, pk(~sk_new))
     ]->
-    [ St_Client(id, $email, keys_new, keys_rev_new)
+    [ St_Client(id, $email, keys_new)
     , Out(<$email, pk(~sk_new)>) ]
 
 

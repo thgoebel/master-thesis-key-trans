@@ -9,19 +9,19 @@ This file contains the VKD.Query and VKD.VerifyQuery subprotocols
 // Simulate the REST-API call
 // curl -H 'x-pm-uid: XXXXX' -H 'Cookie: AUTH-XXXXX;' -H 'x-pm-appversion: web-mail@5.0.28.10' "https://mail.proton.me/api/kt/v1/epochs/300/proof/hello@thore.io/1" | jq
 rule Query_1[color=#c4b7ff]:
-    [ St_Client(id, email, keys, keys_rev)
+    [ St_Client(id, email, keys)
     , In(%epoch_id) ] // workaround to get *a* epoch_id in the premise
     --[ Query($label) ]->
-    [ St_Client_Query1(id, email, keys, keys_rev, $label, %epoch_id)
+    [ St_Client_Query1(id, email, keys, $label, %epoch_id)
     , Out(<$label, %epoch_id>) ]
 
 // ... no rules that explicitly model the server - the network adversary/Tamarin's contraint solver will do it for us ...
 
 rule Query_2[color=#c4b7ff]:
-    [ St_Client_Query1(id, email, keys, keys_rev, label, epoch_id)
+    [ St_Client_Query1(id, email, keys, label, epoch_id)
     , In(<val, rev, roothash>) ]
     -->
-    [ St_Client_Query_Done(id, email, keys, keys_rev, label, epoch_id, val, rev, roothash) ]
+    [ St_Client_Query_Done(id, email, keys, label, epoch_id, val, rev, roothash) ]
 
 
 /* ------- VKD.VerifyQuery / ProtonVKD.VerifyProofInEpoch ------- */
@@ -29,10 +29,10 @@ rule Query_2[color=#c4b7ff]:
 rule VerifyQuery_0[color=#f9d949]:
     let call_stack = <'query_verify_epoch', label, val, rev>
     in
-    [ St_Client_Query_Done(id, email, keys, keys_rev, label, epoch_id, val, rev, roothash) ]
+    [ St_Client_Query_Done(id, email, keys, label, epoch_id, val, rev, roothash) ]
     -->
     // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
-    [ St_Client_VerifyEpoch0(id, email, keys, keys_rev, epoch_id, roothash, call_stack) ]
+    [ St_Client_VerifyEpoch0(id, email, keys, epoch_id, roothash, call_stack) ]
 
 
 /* ------- ProtonVKD.VerifyProof ------- */
@@ -43,7 +43,7 @@ rule VerifyQuery_1[color=#f9d949]:
         user_tree = < $label, <%rev, val>, rest >
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, call_stack)
+    [ St_Client_VerifyEpoch_Done(id, email, keys, epoch_id, roothash, call_stack)
     , In(rest), In(head), In(tail) // models the `Neighbours` fields in the API reponse
     // TODO: model the `Verifier` field to prove uniqueness within the list
     ]
@@ -53,7 +53,7 @@ rule VerifyQuery_1[color=#f9d949]:
         // TODO: check minEpochId
         // TODO: check SKL signature
     ]->
-    [ St_Client(id, email, keys, keys_rev) ]
+    [ St_Client(id, email, keys) ]
 
 
 
