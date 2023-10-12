@@ -13,11 +13,44 @@ begin
 builtins: hashing, natural-numbers, asymmetric-encryption, signing
 
 /*
+# ProtonKT model
+
 This model is inspired by the TreeKEM model in [CSF23].
 
 We model Certificate Transparency through persistent facts !CT
 that both the server and the adversary can write,
-and the the auditor can read.
+and the clients and the auditor can read.
+
+## Hash tree model
+
+First, recall that <a, b, c> is synactic sugar for <a, <b, c>>.
+
+### The upper tree
+
+roothash = h( <'head', h(ut_0), ..., h(ut_i-1), h(ut_i), h(ut_i+1), ..., h(ut_n), 'tail'> )
+
+This enables inclusion proofs for ut_i,
+by providing the list of head hashes, list of tail hashes, and the user tree ut_i.
+'head' and 'tail' are helpers to make pattern matching simpler.
+TODO: we need to restrict that the location of ut_i is unique!
+
+### The lower user subtrees
+
+A user subtree ut has the following form:
+
+ut = < $label, <%n, val_n>, ..., <%2, val_2>, <%1, 'empty'>, 'rest' >
+
+Some examples:
+
+< $label,   <%rev, val>,                rest     >
+< $label, < <%rev, val>,                rest   > >    // same but rewritten
+< $label, < <%rev, val>, < <%rev, val>, rest > > >    // two values/revisions
+
+This allows querying to simply return:
+
+ut = <$label, <%n, val_n>, rest>
+
+TODO: we don't really need the %rev in the tree, it is implicit from the ordered list
 
 ## Limitations
 
