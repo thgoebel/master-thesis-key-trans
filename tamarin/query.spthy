@@ -40,8 +40,8 @@ rule VerifyQuery_0[color=#f9d949]:
 // Check the copath to roothash, i.e. the inclusion/absence proof
 rule VerifyQuery_1[color=#f9d949]:
     let call_stack = <'query_verify_epoch', $label, val, %rev>
-        ut = < $label, <rest, <%rev, val>> >
-        roothash_computed = h( <head, <h(ut), tail> > )
+        user_tree = < $label, <%rev, val>, rest >
+        roothash_computed = h( < head, h(user_tree), tail > )
     in
     [ St_Client_VerifyEpoch_Done(id, email, keys, keys_rev, epoch_id, roothash, call_stack)
     , In(rest), In(head), In(tail) // models the `Neighbours` fields in the API reponse
@@ -49,7 +49,6 @@ rule VerifyQuery_1[color=#f9d949]:
     ]
     --[
         QueryVerified($label, val, %rev, roothash)
-      , QueryVerifiedUserTree($label, val, %rev, roothash, ut)
       , Eq(roothash_computed, roothash)
         // TODO: check minEpochId
         // TODO: check SKL signature

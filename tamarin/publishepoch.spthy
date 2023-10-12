@@ -48,48 +48,40 @@ lemma Basic_Executability:
         & j < k
     "
 
-// Check that the protocol can append to the user subtree
-lemma Executability_NewRevision:
+// Check that the protocol can insert two distinct users into the same tree
+lemma Executability_TwoUsers:
     exists-trace
-    "Ex label val1 rev1 roothash1 ut1 #i1 #j1 #k1
-              val2 rev2 roothash2 ut2 #i2 #j2 #k2 .
+    "Ex roothash label1 val1 rev1 #i #j #k
+                 label2 val2 rev2 #l .
+          RequestInsertion(label1, val1)@i
+        & Query(label1)@j
+        & QueryVerified(label1, val1, rev1, roothash)@k
+        & i < j
+        & j < k
+        & RequestInsertion(label2, val2)@l
+        // force a nice tree structure
+        & roothash = h('head', h(<label1, <rev1, val1>, 'rest'>), h(<label2, <rev2, val2>, 'rest'>), 'tail')
+    "
+
+// Check that the protocol can append to the user subtree
+// Takes ~5 mins and ~7 GB RAM
+lemma Executability_TwoRevisions:
+    exists-trace
+    "Ex label val1 rev1 roothash1 #i1 #j1 #k1
+              val2 rev2 roothash2 #i2 #j2 #k2 .
           RequestInsertion(label, val1)@i1
         & Query(label)@j1
-        // & QueryVerified(label, val1, rev1, roothash1)@k1
-        & QueryVerifiedUserTree(label, val1, rev1, roothash1, ut1)@k1
+        & QueryVerified(label, val1, rev1, roothash1)@k1
         & i1 < j1
         & j1 < k1
         & RequestInsertion(label, val2)@i2
         & Query(label)@j2
-        // & QueryVerified(label, val2, rev2, roothash2)@k2
-        & QueryVerifiedUserTree(label, val2, rev2, roothash2, ut2)@k2
+        & QueryVerified(label, val2, rev2, roothash2)@k2
         & i2 < j2
         & j2 < k2
-        & not (val1 = val2)
-        & rev1 << rev2
-        & roothash1 << roothash2
-        & ut1 << ut2
-        // trim the example trace
-        & not ( Ex val3 #i3 . RequestInsertion(label, val3)@i3 & not (val3 = val1 | val3 = val2) )
-        & not ( Ex label3 val3 #i3 . RequestInsertion(label3, val3)@i3 & not (label3 = label) )
-    "
-
-// Check that the protocol can insert two distinct users into the same tree
-lemma Executability_TwoLabelsInSameTree:
-    exists-trace
-    "Ex roothash label1 val1 rev1 #i1 #j1 #k1
-                 label2 val2 rev2 #i2 #j2 #k2 .
-          RequestInsertion(label1, val1)@i1
-        & Query(label1)@j1
-        & QueryVerified(label1, val1, rev1, roothash)@k1
-        & i1 < j1
-        & j1 < k1
-        & RequestInsertion(label2, val2)@i2
-        & Query(label2)@j2
-        & QueryVerified(label2, val2, rev2, roothash)@k2
-        & i2 < j2
-        & j2 < k2
-        & not (label1 = label2)
+        // force a nice tree structure
+        & roothash1 = h('head', h(< label,                   <%1, val1>, 'rest' >), 'tail')
+        & roothash2 = h('head', h(< label, <%1 %+ %1, val2>, <%1, val1>, 'rest' >), 'tail')
         & not (val1 = val2)
     "
 
