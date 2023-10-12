@@ -32,7 +32,7 @@ rule VerifyQuery_0[color=#f9d949]:
     [ St_Client_Query_Done(id, email, keys, label, epoch_id, val, rev, roothash) ]
     -->
     // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
-    [ St_Client_VerifyEpoch0(id, email, keys, epoch_id, roothash, call_stack) ]
+    [ St_Client_VerifyEpoch_Start(id, email, keys, epoch_id, roothash, call_stack) ]
 
 
 /* ------- ProtonVKD.VerifyProof ------- */
@@ -43,7 +43,7 @@ rule VerifyQuery_1[color=#f9d949]:
         user_tree = < $label, <%rev, val>, rest >
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_Client_VerifyEpoch_Done(id, email, keys, epoch_id, roothash, call_stack)
+    [ St_Client_VerifyEpoch_End(id, email, keys, epoch_id, roothash, call_stack)
     , In(rest), In(head), In(tail) // models the `Neighbours` fields in the API reponse
     // TODO: model the `Verifier` field to prove uniqueness within the list
     ]

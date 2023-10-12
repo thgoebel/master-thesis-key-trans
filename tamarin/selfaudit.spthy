@@ -3,4 +3,37 @@ This file contains the VKD.KeyHistory and VKD.VerifyHistory subprotocols
 (also known as ProtonVKD.SelfAudit).
 */
 
-// TODO
+// Get the "latest" epoch
+// TODO: we don't need to check that this is the latest epoch, do we? at least for modeling purposes?
+rule SelfAudit_0[color=#66deb1]:
+    let call_stack = <'selfaudit', 'none'>
+    in
+    [ St_Client(id, email, keys)
+    , In(%epoch_id), In(roothash_claimed) ]
+    -->
+    [ St_Client_VerifyEpoch_Start(id, email, keys, %epoch_id, roothash_claimed, call_stack) ]
+
+// Get the key history + verify the inclusion proof
+rule SelfAudit_1[color=#66deb1]:
+    let call_stack = <'selfaudit', 'none'>
+        user_tree = <email, keys>
+        roothash_computed = h( < head, h(user_tree), tail > )
+    in
+    [ St_Client_VerifyEpoch_End(id, email, keys, %epoch_id, roothash_logged, call_stack)
+    , In(head), In(tail) ]
+    --[
+          SelfAudit_Ok(id, email, keys, %epoch_id)
+        , Eq(roothash_logged, roothash_computed)
+    ]->
+    [ St_Client(id, email, keys) ]
+
+// TODO: add rule for selfaudit to fail. can we prove that it never fails if the server is honest (non-discreditability)?
+
+
+/* ------- Executability (sanity check) Lemmas ------- */
+
+lemma Executability_SelfAudit_Basic:
+    exists-trace
+    "Ex id email keys epoch_id #i .
+        SelfAudit_Ok(id, email, keys, epoch_id)@i
+    "
