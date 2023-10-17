@@ -68,8 +68,12 @@ Ideas for future modeling improvements are noted as TODO.
 // TODO: support multiple email addresses per account as tuples of <email, keylist>
 rule Init_Client:
     let keys = < <%1, 'empty'>, 'rest' >
+        last_verified_rev = %1
+        unverified_keys = 'empty'
     in
-    [ Fr(~id) ] --> [ St_Client(~id, $email, keys) ]
+    [ Fr(~id) ]
+    --[ InitClient(~id) ]->
+    [ St_Client(~id, $email, keys, last_verified_rev, unverified_keys) ]
 
 rule Register_Server_Pk:
     [ Fr(~sk) ] --> [ !LtkServer($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]

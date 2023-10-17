@@ -11,12 +11,14 @@ rule ClientKeyGen:
         keys_new = < <%rev_old %+ %1, pk(~sk_new)>, <%rev_old, val_old>, rest >
     in
     [ Fr(~sk_new)
-    , St_Client(id, $email, keys_old) ]
+    , St_Client(id, $email, keys_old, last_verified_rev, unverified_keys) ]
     --[
         RequestInsertion($email, pk(~sk_new))
     ]->
-    [ St_Client(id, $email, keys_new)
-    , Out(<$email, pk(~sk_new)>) ]
+    [ St_Client(id, $email, keys_new, last_verified_rev, <pk(~sk_new), unverified_keys>)
+    , Out(pk(~sk_new)) ]
+
+// omit server rules adding key to tree
 
 
 /* ------- Audit CT ------- */

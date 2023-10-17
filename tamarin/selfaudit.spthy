@@ -5,27 +5,56 @@ This file contains the VKD.KeyHistory and VKD.VerifyHistory subprotocols
 
 // Get the "latest" epoch
 // TODO: we don't need to check that this is the latest epoch, do we? at least for modeling purposes?
-rule SelfAudit_1[color=#66deb1]:
-    [ St_Client(id, email, keys)
-    , In(%epoch_id), In(roothash_claimed) ]
+rule SelfAudit_Start[color=#66deb1]:
+    [ St_Client(id, email, keys, %last_verified_rev, unverified_keys)
+    , In(%epoch_id)
+    , In(roothash_claimed)
+    , Fr(~id_sa) ]
     -->
-    [ St_VerifyEpoch_Start(id, %epoch_id, roothash_claimed)
-    , St_SelfAudit_1(id, email, keys, %epoch_id, roothash_claimed) ]
+    [ St_VerifyEpoch_Start(~id_sa, %epoch_id, roothash_claimed)
+    , St_SelfAudit_1(id, email, keys, %last_verified_rev, unverified_keys, ~id_sa, %epoch_id, roothash_claimed) ]
 
-// Get the key history + verify the inclusion proof
-rule SelfAudit_2[color=#66deb1]:
-    let user_tree = <email, keys>
+// Get the key history + verify the inclusion proof towards the roothash
+rule SelfAudit_StartLoop[color=#66deb1]:
+    let user_tree = <email, key_revisions_claimed>
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_VerifyEpoch_End(id)
-    , St_SelfAudit_1(id, email, keys, %epoch_id, roothash)
-    , In(head), In(tail) ]
+    [ St_VerifyEpoch_End(id_sa)
+    , St_SelfAudit_1(id, email, keys, %last_verified_rev, unverified_keys, id_sa, %epoch_id, roothash)
+    , In(head)
+    , In(tail)
+    , In(%highest_rev)
+    , In(key_revisions_claimed)
+    ]
     --[
-          SelfAudit_Ok(id, email, keys, %epoch_id)
-        , Eq(roothash_computed, roothash)
+        // SelfAudit_Ok(id, email, keys, %epoch_id)
+        Eq(roothash_computed, roothash)
         // TODO: check (== restrict) that $label is not a subterm of head nor tail (== unique leaf)
     ]->
-    [ St_Client(id, email, keys) ]
+    [ St_SelfAudit_Loop(id_sa, email, %highest_rev, unverified_keys, key_revisions_claimed)
+    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, %highest_rev) ]
+
+// Check that the inclusion proof contains all the expected keys at all expected revisions
+rule SelfAudit_Loop[color=#66deb1]:
+    let curr_rev = %next_rev %+ %1
+    in
+    [ St_SelfAudit_Loop(id_sa, email, curr_rev, <val, unverified_keys>, < <curr_rev, val>, proof_rest >) ]
+    --[
+        SelfAudit_Loop(id_sa)
+      , SelfAuditVal(id_sa, email, val, curr_rev)
+    ]->
+    [ St_SelfAudit_Loop(id_sa, email, %next_rev, unverified_keys, proof_rest) ]
+
+// Finish and store the new latest_verified_rev
+rule SelfAudit_End[color=#66deb1]:
+    [ St_SelfAudit_Loop(id_sa, email, %current_rev, 'empty', proof_rest)
+    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, %highest_rev) ]
+    --[
+          SelfAuditVerified(id_sa, email, %epoch_id)
+        , Eq(%last_verified_rev, %current_rev)
+    ]->
+    [ St_Client(id, email, keys, %highest_rev, 'empty') ]
+
 
 // TODO: add rule for selfaudit to fail. can we prove that it never fails if the server is honest (non-discreditability)?
 
@@ -34,6 +63,6 @@ rule SelfAudit_2[color=#66deb1]:
 
 lemma Executability_SelfAudit_Basic:
     exists-trace
-    "Ex id email keys epoch_id #i .
-        SelfAudit_Ok(id, email, keys, epoch_id)@i
+    "Ex id_sa email epoch_id #i .
+        SelfAuditVerified(id_sa, email, epoch_id)@i
     "
