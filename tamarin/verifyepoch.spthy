@@ -1,4 +1,3 @@
-
 /* ------- ProtonVKD.VerifyEpoch ------- */
 
 // This client-side algorithm only checks that an epoch and its roothash
@@ -21,34 +20,22 @@
 // So it is more of a sanity check, and doesn't give real security.
 // UNLESS the clients locally stores a DB of chain hashes (which it currently doesn't?).
 
+// We have no rules that explicitly model the server - the network adversary/Tamarin's contraint solver will do it for us.
+
 // curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
-rule VerifyEpoch_1[color=#f9d949]:
-    // The "call_stack" is used to cache variables that VKD.VerifyEpoch ignores,
-    // but that the caller needs to get back.
-    // It should be a tuple <'callername', data> so that there is no type confusion in the data.
-    [ St_Client_VerifyEpoch_Start(id, email, keys, %epoch_id_to_verify, expected_root_hash, call_stack) ]
-    -->
-    [ St_Client_VerifyEpoch1(id, email, keys, %epoch_id_to_verify, expected_root_hash, call_stack)
-    , Out(%epoch_id_to_verify) ]
-
-// ... no rules that explicitly model the server - the network adversary/Tamarin's contraint solver will do it for us ...
-
-rule VerifyEpoch_2[color=#f9d949]:
-    let chainhash_new_computed = h(<chainhash_prev, expected_root_hash>)
+// The `id` is important to uniquely link the return value back to the caller.
+rule VerifyEpoch[color=#f9d949]:
+    let chainhash = h(<chainhash_prev, roothash>)
     in
-    [ In(<chainhash_prev, chainhash_verify, roothash_verify>)
-    // make the CT chainhash explictly different and check for equality below
-    // (for clarity when comparing against the implementation)
-    // TODO: model certificate and SCT in detail?
-    , !CT(epoch_id_to_verify, chainhash_ct, sig)
+    [ St_VerifyEpoch_Start(id, %epoch_id, roothash)
+    , In(chainhash_prev)
+    , !CT(%epoch_id, chainhash, sig)
     // , !Pk($server, pk)
-    , St_Client_VerifyEpoch1(id, email, keys, epoch_id_to_verify, expected_root_hash, call_stack) ]
-    --[
-        Eq(expected_root_hash, roothash_verify)
-      , Eq(chainhash_new_computed, chainhash_verify)
-      , Eq(chainhash_new_computed, chainhash_ct)
+  ]
+  --[
+      EpochVerified(%epoch_id, chainhash)
+      // TODO: model certificate and SCT in detail?
       // TODO: signature verification is not implemented
-      //, Eq(verify(sig, <epoch_id_to_verify, chainhash_ct>, pk), true)
-      , EpochVerified(epoch_id_to_verify, chainhash_new_computed)
+      // , Eq(verify(sig, <%epoch_id, chainhash>, pk), true)
     ]->
-    [ St_Client_VerifyEpoch_End(id, email, keys, epoch_id_to_verify, expected_root_hash, call_stack) ]
+    [ St_VerifyEpoch_End(id) ]

@@ -5,25 +5,25 @@ This file contains the VKD.KeyHistory and VKD.VerifyHistory subprotocols
 
 // Get the "latest" epoch
 // TODO: we don't need to check that this is the latest epoch, do we? at least for modeling purposes?
-rule SelfAudit_0[color=#66deb1]:
-    let call_stack = <'selfaudit', 'none'>
-    in
+rule SelfAudit_1[color=#66deb1]:
     [ St_Client(id, email, keys)
     , In(%epoch_id), In(roothash_claimed) ]
     -->
-    [ St_Client_VerifyEpoch_Start(id, email, keys, %epoch_id, roothash_claimed, call_stack) ]
+    [ St_VerifyEpoch_Start(id, %epoch_id, roothash_claimed)
+    , St_SelfAudit_1(id, email, keys, %epoch_id, roothash_claimed) ]
 
 // Get the key history + verify the inclusion proof
-rule SelfAudit_1[color=#66deb1]:
-    let call_stack = <'selfaudit', 'none'>
-        user_tree = <email, keys>
+rule SelfAudit_2[color=#66deb1]:
+    let user_tree = <email, keys>
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_Client_VerifyEpoch_End(id, email, keys, %epoch_id, roothash_logged, call_stack)
+    [ St_VerifyEpoch_End(id)
+    , St_SelfAudit_1(id, email, keys, %epoch_id, roothash)
     , In(head), In(tail) ]
     --[
           SelfAudit_Ok(id, email, keys, %epoch_id)
-        , Eq(roothash_logged, roothash_computed)
+        , Eq(roothash_computed, roothash)
+        // TODO: check (== restrict) that $label is not a subterm of head nor tail (== unique leaf)
     ]->
     [ St_Client(id, email, keys) ]
 

@@ -65,9 +65,9 @@ Ideas for future modeling improvements are noted as TODO.
 
 /* ------- Initialisation Rules ------- */
 
-// TODO: support multiple email per account as tuples of <email, keylist>
+// TODO: support multiple email addresses per account as tuples of <email, keylist>
 rule Init_Client:
-    let keys = < <%1, 'empty'>, 'rest'>
+    let keys = < <%1, 'empty'>, 'rest' >
     in
     [ Fr(~id) ] --> [ St_Client(~id, $email, keys) ]
 
