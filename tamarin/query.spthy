@@ -18,18 +18,12 @@ rule Query_1[color=#c4b7ff]:
     ]
     // TODO: should Query() and QueryVerified() contain the query-id?
     --[ Query($label) ]->
-    [ St_Query_1(~id, $label, val, %rev, %epoch_id, roothash) ]
+    // Call out to ProtonVKD.VerifyEpoch (inside the VerifyQuery subprotocol).
+    [ St_VerifyEpoch_Start(~id, %epoch_id, roothash)
+    , St_Query_1(~id, $label, val, %rev, %epoch_id, roothash) ]
 
 
 /* ------- VKD.VerifyQuery / ProtonVKD.VerifyProofInEpoch ------- */
-
-rule VerifyQuery_0[color=#c4b7ff]:
-    [ St_Query_1(id, $label, val, %rev, %epoch_id, roothash) ]
-    -->
-    // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
-    [ St_VerifyEpoch_Start(id, %epoch_id, roothash)
-    , St_Query_2(id, $label, val, %rev, %epoch_id, roothash) ]
-
 
 /* ------- ProtonVKD.VerifyProof ------- */
 
@@ -41,7 +35,7 @@ rule VerifyQuery_1[color=#c4b7ff]:
         roothash_computed = h( < head, h(user_tree), tail > )
     in
     [ St_VerifyEpoch_End(id)
-    , St_Query_2(id, $label, val, %rev, %epoch_id, roothash)
+    , St_Query_1(id, $label, val, %rev, %epoch_id, roothash)
     , In(rest), In(head), In(tail) // models the `Neighbours` fields in the API reponse
     // TODO: model the `Verifier` field to prove uniqueness within the list
     ]
