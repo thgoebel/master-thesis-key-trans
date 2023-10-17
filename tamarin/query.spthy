@@ -41,6 +41,7 @@ rule VerifyQuery_1[color=#c4b7ff]:
     ]
     --[
         QueryVerified($label, val, %rev, roothash)
+      , QueryVerifiedEpHash($label, val, %rev, %epoch_id, roothash)
       , Eq(roothash_computed, roothash)
         // TODO: check minEpochId
         // TODO: check SKL signature

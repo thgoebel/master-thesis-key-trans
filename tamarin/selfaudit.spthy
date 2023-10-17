@@ -32,7 +32,7 @@ rule SelfAudit_StartLoop[color=#66deb1]:
         // TODO: check (== restrict) that $label is not a subterm of head nor tail (== unique leaf)
     ]->
     [ St_SelfAudit_Loop(id_sa, email, %highest_rev, unverified_keys, key_revisions_claimed)
-    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, %highest_rev) ]
+    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
 
 // Check that the inclusion proof contains all the expected keys at all expected revisions
 rule SelfAudit_Loop[color=#66deb1]:
@@ -48,9 +48,9 @@ rule SelfAudit_Loop[color=#66deb1]:
 // Finish and store the new latest_verified_rev
 rule SelfAudit_End[color=#66deb1]:
     [ St_SelfAudit_Loop(id_sa, email, %current_rev, 'empty', proof_rest)
-    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, %highest_rev) ]
+    , St_Self_Audit_2(id, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
     --[
-          SelfAuditVerified(id_sa, email, %epoch_id)
+          SelfAuditVerified(id_sa, email, %epoch_id, roothash)
         , Eq(%last_verified_rev, %current_rev)
     ]->
     [ St_Client(id, email, keys, %highest_rev, 'empty') ]
@@ -63,6 +63,6 @@ rule SelfAudit_End[color=#66deb1]:
 
 lemma Executability_SelfAudit_Basic:
     exists-trace
-    "Ex id_sa email epoch_id #i .
-        SelfAuditVerified(id_sa, email, epoch_id)@i
+    "Ex id_sa email epoch_id roothash #i .
+        SelfAuditVerified(id_sa, email, epoch_id, roothash)@i
     "

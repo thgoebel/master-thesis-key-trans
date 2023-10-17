@@ -116,6 +116,7 @@ rule CT_Insert:
 #include "verifyepoch.spthy"
 #include "query.spthy"
 #include "selfaudit.spthy"
+#include "appendaudit.spthy"
 
 
 /* ------- Restrictions ------- */

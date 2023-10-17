@@ -1,0 +1,84 @@
+/*
+Third-party auditor rules monitoring the tree for append-only-ness
+
+Without this, a malicious server could change the value at a revision
+and later change it back.
+
+The model gradually builds the tree by appending
+and **incrementing the epoch_id**.
+
+We can then use the roothash in the auditor's action facts
+and link it to the roothash seen elsewhere.
+*/
+
+rule AppendAudit_Init[color=#f09837]:
+    [ Fr(~id) ]
+    --[ AppendInit(~id) ]->
+    [ St_AppendAuditor(~id, %1, h( <'head', 'tail'> )) ]
+
+
+// Inserts an new empty leaf for a new label
+rule AppendAudit_Insert[color=#f09837]:
+    let roothash_old = h( <head, tail> )
+
+        new_ut = <$label, <%1, 'empty'>, 'rest' >
+        roothash_new = h( <head, <h(new_ut), tail>> )
+    in
+    [ St_AppendAuditor(id, %epoch_id, roothash_old)
+    // head + tail let the adversary choose the index at which to insert
+    , In(head)
+    , In(tail)
+    ]
+    --[
+        AppendInsert(id)
+      , AppendAudit(id, %epoch_id %+ %1, roothash_new)
+      // TODO: limit that $label is not already in head nor tail
+    ]->
+    [ St_AppendAuditor(id, %epoch_id %+ %1, roothash_new) ]
+
+// Updates the entry for an existing label
+rule AppendAudit_Update[color=#f09837]:
+    let old_ut = <$label,                        <%rev_old, val_old>, rest>
+        roothash_old = h( <head, <h(old_ut), tail>> )
+
+        new_ut = <$label, <%rev_old %+ %1, val>, <%rev_old, val_old>, rest>
+        roothash_new = h( <head, <h(new_ut), tail>> )
+    in
+    [ St_AppendAuditor(id, %epoch_id, roothash_old)
+    , In(head)
+    , In(tail)
+    , In(<$label, val>)
+    ]
+    --[
+        AppendUpdate(id)
+      , AppendAudit(id, %epoch_id %+ %1, roothash_new)
+    ]->
+    [ St_AppendAuditor(id, %epoch_id %+ %1, roothash_new) ]
+
+
+/* ------- Executability (sanity check) Lemmas ------- */
+
+lemma Exec_AppendAuditor_Basic:
+    exists-trace
+    "Ex id roothash #i #j #k .
+          AppendInsert(id)@i
+        & AppendUpdate(id)@j
+        & AppendAudit(id, %1 %+ %1 %+ %1 %+ %1, roothash)@k
+        & i < j
+        & j < k
+    "
+
+// Check that the three core protocols are all executable
+// wrt. the same <epoch_id, rooothash>.
+lemma Exec_AppendAuditor_and_SelfAudit_and_Query:
+    exists-trace
+    "Ex epoch_id roothash
+        id_a #i
+        label val rev #j
+        id_sa #k
+        .
+            AppendAudit(id_a, epoch_id, roothash)@i
+        //   & AppendUpdate(id_a)@i
+          & QueryVerifiedEpHash(label, val, rev, epoch_id, roothash)@j
+          & SelfAuditVerified(id_sa, label, epoch_id, roothash)@k
+    "
