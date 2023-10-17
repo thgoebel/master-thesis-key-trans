@@ -23,7 +23,7 @@ rule Query_1[color=#c4b7ff]:
 
 /* ------- VKD.VerifyQuery / ProtonVKD.VerifyProofInEpoch ------- */
 
-rule VerifyQuery_0[color=#f9d949]:
+rule VerifyQuery_0[color=#c4b7ff]:
     [ St_Query_1(id, $label, val, %rev, %epoch_id, roothash) ]
     -->
     // Call out to ProtonVKD.VerifyEpoch (inside the Query subprotocol).
@@ -36,7 +36,7 @@ rule VerifyQuery_0[color=#f9d949]:
 // Check the copath to roothash, i.e. the inclusion/absence proof
 // Note that our model guarantees that %rev is the latest revision.
 // In practice, we need to check this!
-rule VerifyQuery_1[color=#f9d949]:
+rule VerifyQuery_1[color=#c4b7ff]:
     let user_tree = < $label, <%rev, val>, rest >
         roothash_computed = h( < head, h(user_tree), tail > )
     in
