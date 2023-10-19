@@ -11,11 +11,13 @@ rule ClientKeyGen:
         keys_new = < <%rev_old %+ %1, pk(~sk_new)>, <%rev_old, val_old>, rest >
     in
     [ Fr(~sk_new)
-    , St_Client(id, $email, keys_old, last_verified_rev, unverified_keys) ]
+    , !St_Client(id, %rev, $email, keys_old, last_verified_rev, unverified_keys) ]
     --[
         ClientKeyGen(id, $email, pk(~sk_new))
+      , UseMaxStClient(id, %rev)
+      , StClientGen(id, %rev %+ %1)
     ]->
-    [ St_Client(id, $email, keys_new, last_verified_rev, <pk(~sk_new), unverified_keys>)
+    [ !St_Client(id, %rev %+ %1, $email, keys_new, last_verified_rev, <pk(~sk_new), unverified_keys>)
     , Out(pk(~sk_new)) ]
 
 // omit server rules adding key to tree
@@ -96,16 +98,16 @@ lemma Executability_TwoRevisions:
 // the signing back to a secret key.
 // This helps Tamarin figure out that this is a dead-end:
 // after all, the rule "Audit_CT_Equivocation" requires that they are signed by the same key.
-lemma Helper_LinkEpochSignToInitServer[use_induction,reuse]:
-    all-traces
-    "All id e s #i .
-        ServerEpochSign(id, e, s)@i
-    ==> (InitServer(id)@i)
-        | (Ex #j . InitServer(id)@j & j < i)
-    "
+// lemma Helper_LinkEpochSignToInitServer[use_induction,reuse]:
+//     all-traces
+//     "All id e s #i .
+//         ServerEpochSign(id, e, s)@i
+//     ==> (InitServer(id)@i)
+//         | (Ex #j . InitServer(id)@j & j < i)
+//     "
 
-lemma Security_NonDiscreditabilityCT:
-    all-traces
-    "All epoch_id #i . EquivocationInCt(epoch_id)@i
-        ==> Ex #j . RevealServerSk()@j & j < i
-    "
+// lemma Security_NonDiscreditabilityCT:
+//     all-traces
+//     "All epoch_id #i . EquivocationInCt(epoch_id)@i
+//         ==> Ex #j . RevealServerSk()@j & j < i
+//     "

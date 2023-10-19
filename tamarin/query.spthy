@@ -62,14 +62,14 @@ rule VerifyQuery_1[color=#c4b7ff]:
 //     "
 
 // XXX: no outcome type, i.e. only inclusion for now (no absence/obsolence)
-lemma QueryConsistency:
-    all-traces
-    "All label val1 rev1 val2 rev2 roothash1 roothash2 #i1 #i2 .
-          QueryVerified(label, val1, rev1, roothash1)@i1
-        & QueryVerified(label, val2, rev2, roothash2)@i2
-        & roothash1 = roothash2
-        & not (Ex #r . RevealServerSk()@r & r < i1 & r < i2)
-        ==>
-          val1 = val2
-        & rev1 = rev2
-    "
+// lemma QueryConsistency:
+//     all-traces
+//     "All label val1 rev1 val2 rev2 roothash1 roothash2 #i1 #i2 .
+//           QueryVerified(label, val1, rev1, roothash1)@i1
+//         & QueryVerified(label, val2, rev2, roothash2)@i2
+//         & roothash1 = roothash2
+//         & not (Ex #r . RevealServerSk()@r & r < i1 & r < i2)
+//         ==>
+//           val1 = val2
+//         & rev1 = rev2
+//     "

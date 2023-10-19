@@ -72,8 +72,20 @@ rule Init_Client:
         unverified_keys = 'empty'
     in
     [ Fr(~id) ]
-    --[ InitClient(~id) ]->
-    [ St_Client(~id, $email, keys, last_verified_rev, unverified_keys) ]
+    --[
+        InitClient(~id)
+      , StClientGen(~id, %1)
+    ]->
+    [ !St_Client(~id, %1, $email, keys, last_verified_rev, unverified_keys) ]
+
+// !St_Client is a persistent fact so that it is reusable from the old in case a self-audit fails
+restriction UseMaxStClient:
+    "All id rev rev_ #t #t_ .
+        UseStClient(id, rev)@t & StClientGen(id, rev_)@t_ & #t_ < #t
+        ==>
+        (rev_ << rev | rev_ = rev)
+    "
+
 
 rule Register_Server_Pk:
     [ Fr(~sk) ] --> [ !LtkServer($server, ~sk), !Pk($server, pk(~sk)), Out(pk(~sk)) ]
