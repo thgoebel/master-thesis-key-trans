@@ -60,7 +60,7 @@ rule AppendAudit_Update[color=#f09837]:
         AppendUpdate(id)
       , AppendAudit(id, %epoch_id %+ %1, roothash_new)
     ]->
-    [ St_AppendAuditor(id, %epoch_id %+ %1,chainhash_new, roothash_new) ]
+    [ St_AppendAuditor(id, %epoch_id %+ %1, chainhash_new, roothash_new) ]
 
 
 /* ------- Executability (sanity check) Lemmas ------- */
