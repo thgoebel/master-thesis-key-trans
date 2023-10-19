@@ -61,7 +61,36 @@ rule SelfAudit_End[color=#66deb1]:
     [ !St_Client(id, %clientrev %+ %1, email, keys, %highest_rev, 'empty') ]
 
 
-// TODO: add rule for selfaudit to fail. can we prove that it never fails if the server is honest (non-discreditability)?
+/* ------- Auxiliary Lemmas ------- */
+
+// Needed for lemma NotTooManyLoops
+lemma SelfAuditLoopStarts[reuse,use_induction]:
+    all-traces
+    "All id_sa rev #j .
+        SelfAudit_Loop(id_sa, rev)@j
+        ==>
+        Ex highest_rev #i . SelfAudit_LoopStart(id_sa, highest_rev)@i & i < j
+    "
+
+// Needed for lemma NotTooManyLoops
+// Proving this efficiently requires the oracle.py.
+lemma SelfAudit_Loop_Unique_Start[reuse]:
+    all-traces
+    "All id_sa rev rev_ #i #i_ .
+          SelfAudit_LoopStart(id_sa, rev)@i
+        & SelfAudit_LoopStart(id_sa, rev_)@i_
+        ==>
+        #i = #i_
+    "
+
+lemma NotTooManyLoops[use_induction]:
+    all-traces
+    "All id_sa highest_rev rev #i #j .
+          SelfAudit_LoopStart(id_sa, highest_rev)@i
+        & SelfAudit_Loop(id_sa, rev)@j
+        ==>
+        rev << highest_rev | rev = highest_rev
+    "
 
 
 /* ------- Executability (sanity check) Lemmas ------- */

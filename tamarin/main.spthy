@@ -12,6 +12,8 @@ begin
 
 builtins: hashing, natural-numbers, asymmetric-encryption, signing
 
+heuristic: O "oracle.py"
+
 /*
 # ProtonKT model
 
