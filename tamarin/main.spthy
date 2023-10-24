@@ -40,7 +40,7 @@ TODO: we need to restrict that the location of ut_i is unique!
 
 A user subtree ut has the following form:
 
-ut = < $label, <%n, val_n>, ..., <%2, val_2>, <%1, 'empty'>, 'rest' >
+ut = < $label, <%n, val_n>, ..., <%3, val_3>, <%2, 'empty'>, 'rest' >
 
 Some examples:
 
@@ -68,8 +68,14 @@ Ideas for future modeling improvements are noted as TODO.
 /* ------- Initialisation Rules ------- */
 
 // TODO: support multiple email addresses per account as tuples of <email, keylist>
+//
+// Note:
+// The first "key" (== the empty key) has revision 2 because we need
+// the last_verified_rev to be strictly lower. This ensures that the client
+// can do a self-audit where it will see the "key" with revision 2.
+// An implementation could simply initialise last_verified_rev = -1.
 rule Init_Client:
-    let keys = < <%1, 'empty'>, 'rest' >
+    let keys = < <%1 %+ %1, 'empty'>, 'rest' >
         last_verified_rev = %1
         unverified_keys = 'empty'
     in
@@ -142,8 +148,8 @@ restriction Neq:
     "All a b #i . Neq(a,b)@i ==> not (a = b)"
 
 // The "not" part isn't needed, but let's make it explicit.
-// restriction StrictlyGreaterThan: // x > y
-//     "All x y #i . StrictlyGreaterThan(x,y)@i ==> y << x & not (x = y)"
+restriction StrictlyGreaterThan: // x > y
+    "All x y #i . StrictlyGreaterThan(x,y)@i ==> y << x & not (x = y)"
 
 // restriction StrictlyLessThan: // x < y
 //     "All x y #i . StrictlyLessThan(x,y)@i ==> x << y & not (x = y)"

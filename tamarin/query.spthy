@@ -40,7 +40,9 @@ rule VerifyQuery_1[color=#c4b7ff]:
     // TODO: model the `Verifier` field to prove uniqueness within the list
     ]
     --[
-        QueryVerified($label, val, %rev, roothash)
+        // revisions start at 2 (see main.spthy)
+        StrictlyGreaterThan(%rev, %1)
+      , QueryVerified($label, val, %rev, roothash)
       , QueryVerifiedEpHash($label, val, %rev, %epoch_id, roothash)
       , Eq(roothash_computed, roothash)
         // TODO: check minEpochId
