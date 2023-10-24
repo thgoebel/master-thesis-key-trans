@@ -3,6 +3,9 @@ This file contains the VKD.KeyHistory and VKD.VerifyHistory subprotocols
 (also known as ProtonVKD.SelfAudit).
 */
 
+// The %clientrev is a helper value to ensure that the "latest" !St_Client fact
+// is used (because it is a persistent fact).
+
 // Get the "latest" epoch
 // TODO: we don't need to check that this is the latest epoch, do we? at least for modeling purposes?
 rule SelfAudit_Start[color=#66deb1]:
@@ -23,7 +26,7 @@ rule SelfAudit_LoopStart[color=#66deb1]:
         roothash_computed = h( < head, h(user_tree), tail > )
     in
     [ St_VerifyEpoch_End(id_sa)
-    , St_SelfAudit_1(id, %clientrev, email, keys, %last_verified_rev, unverified_keys, id_sa, %epoch_id, roothash)
+    , St_SelfAudit_1(id_c, %clientrev, email, keys, %last_verified_rev, unverified_keys, id_sa, %epoch_id, roothash)
     , In(head)
     , In(tail)
     , In(%highest_rev)
@@ -35,30 +38,37 @@ rule SelfAudit_LoopStart[color=#66deb1]:
       , SelfAudit_LoopStart(id_sa, %highest_rev)
         // TODO: check (== restrict) that $label is not a subterm of head nor tail (== unique leaf)
     ]->
-    [ St_SelfAudit_Loop(id_sa, email, %highest_rev, unverified_keys, key_revisions_claimed)
-    , St_Self_Audit_2(id, %clientrev, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
+    [ St_SelfAudit_Loop(id_c, id_sa, email, %highest_rev, unverified_keys, key_revisions_claimed)
+    , St_Self_Audit_2(id_c, %clientrev, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
 
 // Check that the inclusion proof contains all the expected keys at all expected revisions
 rule SelfAudit_Loop[color=#66deb1]:
     let curr_rev = %next_rev %+ %1
     in
-    [ St_SelfAudit_Loop(id_sa, email, curr_rev, <val, unverified_keys>, < <curr_rev, val>, proof_rest >) ]
+    [ St_SelfAudit_Loop(id_c, id_sa, email, curr_rev, <val, unverified_keys>, < <curr_rev, val>, proof_rest >) ]
     --[
         SelfAudit_Loop(id_sa, curr_rev)
-      , SelfAuditVal(id_sa, email, val, curr_rev)
+      , SelfAuditVal(id_c, id_sa, email, val, curr_rev)
     ]->
-    [ St_SelfAudit_Loop(id_sa, email, %next_rev, unverified_keys, proof_rest) ]
+    [ St_SelfAudit_Loop(id_c, id_sa, email, %next_rev, unverified_keys, proof_rest) ]
 
 // Finish and store the new latest_verified_rev
 rule SelfAudit_End[color=#66deb1]:
-    [ St_SelfAudit_Loop(id_sa, email, %current_rev, 'empty', proof_rest)
-    , St_Self_Audit_2(id, %clientrev, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
+    // Stop once we have decremented curr_rev/next_rev to equal last_verified_rev.
+    // It is important that the proof_rest starts with the last_verified_rev,
+    // linking it to our previous audit, else we may miss something.
+    //
+    // Also recall that the append-auditor ensures that the value at last_verified_rev
+    // (and any previous value) haven't changed.
+    [ St_SelfAudit_Loop(id_c, id_sa, email, %last_verified_rev, 'empty', < <%last_verified_rev, val_irrelevant>, proof_rest >)
+    , St_Self_Audit_2(id_c, %clientrev, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
     --[
-        SelfAuditVerified(id, id_sa, email, %epoch_id, roothash)
-      , Eq(%last_verified_rev, %current_rev)
-      , StClientGen(id, %clientrev %+ %1)
+        SelfAuditVerified(id_c, id_sa, email, %epoch_id, roothash)
+      , SelfAuditVerifiedRoothash(id_c, id_sa, roothash)
+      , SelfAuditVerifiedLastVerifiedRev(id_c, id_sa, %highest_rev)
+      , StClientGen(id_c, %clientrev %+ %1)
     ]->
-    [ !St_Client(id, %clientrev %+ %1, email, keys, %highest_rev, 'empty') ]
+    [ !St_Client(id_c, %clientrev %+ %1, email, keys, %highest_rev, 'empty') ]
 
 
 /* ------- Auxiliary Lemmas ------- */
