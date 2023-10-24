@@ -31,8 +31,8 @@ rule Audit_CT_Equivocation[color=#eb508d]:
     , !Pk($server, pk) ]
     --[
         Neq(chainhash_ct_1, chainhash_ct_2)
-      , Eq(verify(sig_1, <epoch_id, chainhash_ct_1>, pk), true)
-      , Eq(verify(sig_2, <epoch_id, chainhash_ct_2>, pk), true)
+    //   , Eq(verify(sig_1, <epoch_id, chainhash_ct_1>, pk), true)
+    //   , Eq(verify(sig_2, <epoch_id, chainhash_ct_2>, pk), true)
       , EquivocationInCt(epoch_id)
     ]->
     []
