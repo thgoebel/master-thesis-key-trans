@@ -36,6 +36,7 @@ rule SelfAudit_LoopStart[color=#66deb1]:
         // SelfAudit_Ok(id, email, keys, %epoch_id)
         Eq(roothash_computed, roothash)
       , SelfAudit_LoopStart(id_sa, %highest_rev)
+      , SelfAudit_KeyRevisions(id_sa, key_revisions_claimed)
         // TODO: check (== restrict) that $label is not a subterm of head nor tail (== unique leaf)
     ]->
     [ St_SelfAudit_Loop(id_c, id_sa, email, %highest_rev, unverified_keys, key_revisions_claimed)
@@ -64,7 +65,6 @@ rule SelfAudit_End[color=#66deb1]:
     , St_Self_Audit_2(id_c, %clientrev, email, keys, %last_verified_rev, id_sa, %epoch_id, roothash, %highest_rev) ]
     --[
         SelfAuditVerified(id_c, id_sa, email, %epoch_id, roothash)
-      , SelfAuditVerifiedRoothash(id_c, id_sa, roothash)
       , SelfAuditVerifiedLastVerifiedRev(id_c, id_sa, %highest_rev)
       , StClientGen(id_c, %clientrev %+ %1)
     ]->
@@ -109,4 +109,27 @@ lemma Executability_SelfAudit_Basic:
     exists-trace
     "Ex id id_sa email epoch_id roothash #i .
         SelfAuditVerified(id, id_sa, email, epoch_id, roothash)@i
+    "
+
+lemma Executability_SelfAudit_Two_Keys:
+    exists-trace
+    "Ex id id_sa email val1 val2 epoch_id roothash #i #j #k .
+          ClientKeyGen(id, email, val1)@i
+        & ClientKeyGen(id, email, val2)@j
+        & SelfAuditVerified(id, id_sa, email, epoch_id, roothash)@k
+        & i < k
+        & j < k
+        & val1 << roothash
+        & val2 << roothash
+    "
+
+lemma SelfAudit_Finds_All_Keys:
+    all-traces
+    "All id email val #i .
+        ClientKeyGen(id, email, val)@i
+        ==>
+        Ex id_sa epoch_id roothash #j .
+            SelfAuditVerified(id, id_sa, email, epoch_id, roothash)@j
+            & i < j
+            & val << roothash
     "

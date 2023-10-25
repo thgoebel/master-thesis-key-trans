@@ -42,7 +42,10 @@ rule VerifyQuery_1[color=#c4b7ff]:
     --[
         // revisions start at 2 (see main.spthy)
         StrictlyGreaterThan(%rev, %1)
-      , QueryVerified($label, val, %rev, roothash)
+      , QueryVerified($label, val, %rev)
+      , QueryVerifiedEpoch(%epoch_id)
+      , QueryVerifiedRoothash(roothash)
+      , QueryVerifiedEp($label, val, %rev, %epoch_id)
       , QueryVerifiedEpHash($label, val, %rev, %epoch_id, roothash)
       , Eq(roothash_computed, roothash)
         // TODO: check minEpochId

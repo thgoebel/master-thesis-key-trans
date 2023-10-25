@@ -127,7 +127,7 @@ rule Reveal_Server_Sk:
 rule CT_Insert:
     [ In(<epoch_id, chainhash, sig>) ]
     --[
-        CtInsertChainhash(chainhash)
+        CtInsertChainhash(epoch_id, chainhash)
     ]->
     [ !CT(epoch_id, chainhash, sig) ]
 
@@ -162,12 +162,125 @@ restriction StrictlyGreaterThan: // x > y
 // restriction LessOrEqualThan: // x <= y
 //     "All x y #i . LessOrEqualThan(x,y)@i ==> x << y | x = y"
 
-restriction OnlyOne:
-    "All a #i #j . OnlyOne(a)@i & OnlyOne(a)@j ==> #i = #j"
+// restriction OnlyOne:
+//     "All a #i #j . OnlyOne(a)@i & OnlyOne(a)@j ==> #i = #j"
 
 
 /* ------- Lemmas ------- */
 
-// TODO
+// TODO: lemma that there is only one SelfAuditVal for each revision
+
+// lemma If_SelfAudit_LastVerifiedRev_then_all_previous_revs_were_seen[reuse,use_induction]:
+//     "All id_c id_sa1 rev highest_rev rev #j .
+//           SelfAuditVerifiedLastVerifiedRev(id_c, id_sa1, highest_rev)@j
+//         & ( rev << highest_rev | rev = highest_rev )
+//     ==>
+//         Ex id_sa2 label val #i . SelfAuditVal(id_c, id_sa2, label, val, rev)@i & i < j
+//     "
+
+lemma SelfAudit_sees_all_subterms[reuse]:
+    "All .
+        SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash)@s1
+        ==>
+        All sub
+            sub << user_tree
+        .
+          SelfAuditVal(id_c, id_sa2, label, val_s, rev_s)@s2
+    "
+
+lemma Same_Roothash_Implies_Same_Values[reuse]:
+    "All label roothash
+        val_q rev_q ep_q #q
+        id_c id_sa1 ep_s #s1
+        .
+          QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash)@q
+        & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash)@s1
+        // & ( ep_q << ep_s | ep_q = ep_s )
+    ==>
+        Ex id_sa2 val_s rev_s #s2
+            .
+              SelfAuditVal(id_c, id_sa2, label, val_s, rev_s)@s2
+            & s2 < s1
+            & val_q = val_s
+            & rev_q = rev_s
+    "
+
+// This helps prove the second part of the Consistency lemma's implication
+lemma If_SelfAudit_ends_with_roothash_then_it_was_logged_in_CT[reuse]:
+    "All id_c id_sa label epoch_id roothash #i .
+        SelfAuditVerified(id_c, id_sa, label, epoch_id, roothash)@i
+        ==>
+        Ex #j . CtInsertChainhash(epoch_id, roothash)@j
+    "
+
+lemma If_QueryVerifed_ends_with_roothash_then_it_was_logged_in_CT[reuse]:
+    "All epoch_id roothash #i .
+          QueryVerifiedRoothash(roothash)@i
+        & QueryVerifiedEpoch(epoch_id)@i
+        ==>
+        Ex #j . CtInsertChainhash(epoch_id, roothash)@j
+    "
+
+// All Queries BEFORE the SelfAudit should be consistent
+// (with the SelfAudit, but also with each other).
+// TODO: depends on roothashes/chainhashes
+lemma Sec_Consistency:
+    "All label
+        val_q rev_q ep_q roothash_q #q
+        ep_s id_c id_sa1 roothash_s #s1
+        // id_a ep_a roothash_a #a
+        .
+
+        QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash_q)@q
+
+          & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash_s)@s1
+          // only for all queries in epochs up to the SelfAudit
+          & ( ep_q << ep_s | ep_q = ep_s )
+
+          // and there was an append-only-audit concluding at the same roothash
+          & AppendAudit(id_a, ep_a, roothash_a)@a
+          & ( ep_s << ep_a | ep_s = ep_a )
+
+        ==>
+        // Case 1: roothashes are equal
+        //         then we want security:
+        //         i.e. SOME previous self-audit saw this key as well
+        //         (this may be different from the Self-Audit above)
+        (
+            // roothash_q = roothash_s
+            // ==>
+            ( Ex id_sa2 val_s rev_s #s2 .
+                SelfAuditVal(id_c, id_sa2, label, val_s, rev_s)@s2
+                & s2 < s1
+                // the value + revision are consistent
+                & val_q = val_s
+                & rev_q = rev_s
+            )
+        )
+        // TODO: and no self-audit saw a different key?
+
+        // or an auditor raised a warning for append-only-ness
+        // | ( Ex . )
+
+        // Case 2: roothashes are NOT equal
+        //         then we want this to be detected
+        // TODO: and the offending epoch was inserted BEFORE the querying??
+        | (
+            // not ( roothash_q = roothash_s)
+            // ==>
+            ( Ex ep_e chainhash chainhash_ #e #e_ .
+                  CtInsertChainhash(ep_e, chainhash)@e
+                & CtInsertChainhash(ep_e, chainhash_)@e_
+                & not ( chainhash = chainhash_ )
+                & ( ep_e << ep_q | ep_e = ep_q )
+            )
+        )
+    "
 
 end
+
+
+/*
+induction:
+if it holds now, adding a user does not break the loop
+*/

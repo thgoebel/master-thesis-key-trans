@@ -76,16 +76,23 @@ lemma Exec_AppendAuditor_Basic:
     "
 
 // Check that the three core protocols are all executable
-// wrt. the same <epoch_id, rooothash>.
+// wrt. the same <epoch_id, roothash>.
+//
+// This takes VERY LONG to verify automatically.
+// By instead stepping through manually you can find a trace pretty fast.
 lemma Exec_AppendAuditor_and_SelfAudit_and_Query:
     exists-trace
     "Ex epoch_id roothash
         id_a #i
         label val rev #j
-        id_sa #k
+        id_c #k
+        id_sa #l #m
         .
             AppendAudit(id_a, epoch_id, roothash)@i
         //   & AppendUpdate(id_a)@i
           & QueryVerifiedEpHash(label, val, rev, epoch_id, roothash)@j
-          & SelfAuditVerified(id_sa, label, epoch_id, roothash)@k
+          & ClientKeyGen(id_c, label, val)@k
+          & SelfAuditStart(id_sa)@l
+          & SelfAuditVerified(id_c, id_sa, label, epoch_id, roothash)@m
+          & k < l
     "
