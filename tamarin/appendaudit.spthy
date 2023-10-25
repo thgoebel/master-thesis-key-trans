@@ -17,10 +17,11 @@ rule AppendAudit_Init[color=#f09837]:
     in
     [ Fr(~id)
     , !CT(%1, chainhash, sig) ]
-    --[ AppendInit(~id) ]->
+    --[ AppendInit(~id)
+      , AppendAudit(~id, %1, roothash, chainhash)
+      ]->
     [ St_AppendAuditor(~id, %1, chainhash, roothash) ]
 
-    epoch_id
 // Inserts an new empty leaf for a new label
 rule AppendAudit_Insert[color=#f09837]:
     let roothash_old = h( <head, tail> )
