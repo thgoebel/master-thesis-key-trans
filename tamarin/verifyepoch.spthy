@@ -25,12 +25,11 @@
 // curl 'https://mail.proton.me/api/kt/v1/epochs/300' | jq
 // The `id` is important to uniquely link the return value back to the caller.
 rule VerifyEpoch[color=#f9d949]:
-    // let chainhash = h(<chainhash_prev, roothash>)
-    // in
+    let chainhash = h(<chainhash_prev, roothash>)
+    in
     [ St_VerifyEpoch_Start(id, %epoch_id, roothash)
-    // , In(chainhash_prev)
-    // , !CT(%epoch_id, chainhash, sig)
-    , !CT(%epoch_id, roothash, sig)
+    , In(chainhash_prev)
+    , !CT(%epoch_id, chainhash, sig)
     // , !Pk($server, pk)
   ]
   --[
@@ -38,4 +37,4 @@ rule VerifyEpoch[color=#f9d949]:
       // TODO: signature verification is not implemented
       // , Eq(verify(sig, <%epoch_id, chainhash>, pk), true)
     ]->
-    [ St_VerifyEpoch_End(id) ]
+    [ St_VerifyEpoch_End(id, chainhash) ]

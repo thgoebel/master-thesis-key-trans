@@ -25,7 +25,7 @@ rule SelfAudit_LoopStart[color=#66deb1]:
     let user_tree = <email, key_revisions_claimed>
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_VerifyEpoch_End(id_sa)
+    [ St_VerifyEpoch_End(id_sa, chainhash)
     , St_SelfAudit_1(id_c, %clientrev, email, keys, %last_verified_rev, unverified_keys, id_sa, %epoch_id, roothash)
     , In(head)
     , In(tail)

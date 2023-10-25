@@ -34,7 +34,7 @@ rule VerifyQuery_1[color=#c4b7ff]:
     let user_tree = < $label, <%rev, val>, rest >
         roothash_computed = h( < head, h(user_tree), tail > )
     in
-    [ St_VerifyEpoch_End(id)
+    [ St_VerifyEpoch_End(id, chainhash)
     , St_Query_1(id, $label, val, %rev, %epoch_id, roothash)
     , In(rest), In(head), In(tail) // models the `Neighbours` fields in the API reponse
     // TODO: model the `Verifier` field to prove uniqueness within the list
