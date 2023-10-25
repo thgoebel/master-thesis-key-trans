@@ -70,7 +70,8 @@ rule AppendAudit_Update[color=#f09837]:
     ]
     --[
         AppendUpdate(id)
-      , AppendAudit(id, %epoch_id %+ %1, roothash_new)
+      , AppendAuditVal($label, val, %rev_old %+ %1)
+      , AppendAudit(id, %epoch_id %+ %1, roothash_new, chainhash_new)
     ]->
     [ St_AppendAuditor(id, %epoch_id %+ %1, chainhash_new, roothash_new) ]
 
@@ -79,10 +80,10 @@ rule AppendAudit_Update[color=#f09837]:
 
 lemma Exec_AppendAuditor_Basic:
     exists-trace
-    "Ex id roothash #i #j #k .
+    "Ex id roothash chainhash #i #j #k .
           AppendInsert(id)@i
         & AppendUpdate(id)@j
-        & AppendAudit(id, %1 %+ %1 %+ %1 %+ %1, roothash)@k
+        & AppendAudit(id, %1 %+ %1 %+ %1 %+ %1, roothash, chainhash)@k
         & i < j
         & j < k
     "
@@ -94,13 +95,13 @@ lemma Exec_AppendAuditor_Basic:
 // By instead stepping through manually you can find a trace pretty fast.
 lemma Exec_AppendAuditor_and_SelfAudit_and_Query:
     exists-trace
-    "Ex epoch_id roothash
+    "Ex epoch_id roothash chainhash
         id_a #i
         label val rev #j
         id_c #k
         id_sa #l #m
         .
-            AppendAudit(id_a, epoch_id, roothash)@i
+            AppendAudit(id_a, epoch_id, roothash, chainhash)@i
         //   & AppendUpdate(id_a)@i
           & QueryVerifiedEpHash(label, val, rev, epoch_id, roothash)@j
           & ClientKeyGen(id_c, label, val)@k
