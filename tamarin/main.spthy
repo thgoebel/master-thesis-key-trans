@@ -228,7 +228,7 @@ lemma Sec_Consistency:
     "All label
         val_q rev_q ep_q roothash_q #q
         ep_s id_c id_sa1 roothash_s #s1
-        // id_a ep_a roothash_a #a
+        id_a ep_a roothash_a chainhash_a #a
         .
 
         QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash_q)@q
@@ -238,7 +238,7 @@ lemma Sec_Consistency:
           & ( ep_q << ep_s | ep_q = ep_s )
 
           // and there was an append-only-audit concluding at the same roothash
-          & AppendAudit(id_a, ep_a, roothash_a)@a
+          & AppendAudit(id_a, ep_a, roothash_a, chainhash_a)@a
           & ( ep_s << ep_a | ep_s = ep_a )
 
         ==>
