@@ -15,7 +15,7 @@ rule AppendAudit_Init[color=#f09837]:
     let roothash  = h( <'head', 'tail'> )
         chainhash = h(<'basechainhash', roothash>)
     in
-    [ Fr(~id) ]
+    [ Fr(~id), !CT(%1, chainhash, sig) ]
     --[ AppendInit(~id) ]->
     [ St_AppendAuditor(~id, %1, chainhash, roothash) ]
 
