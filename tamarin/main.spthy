@@ -195,6 +195,37 @@ lemma Same_Roothash_Implies_Same_Values[reuse]:
             & rev_q = rev_s
     "
 
+lemma RootHashChainQ[reuse]:
+    "All label val_q rev_q ep_q roothash_q #q
+        id_a ep_a ch_a roothash_a #a.
+              QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash_q)@q
+            & AppendAudit(id_a, ep_a, roothash_a, ch_a)@a
+            & ( ep_q << ep_a | ep_q = ep_a )
+        ==> ( (roothash_q << ch_a & roothash_a << ch_a)
+            | (
+                ( Ex ep_e chainhash chainhash_ #e #e_ .
+                    CtInsertChainhash(ep_e, chainhash)@e
+                    & CtInsertChainhash(ep_e, chainhash_)@e_
+                    & not ( chainhash = chainhash_ )
+                    & ( ep_e << ep_a | ep_e = ep_a )
+                )
+            ))"
+
+lemma RootHashChainSA[reuse]:
+    "All ep_s id_c id_sa1 label roothash_s #s
+        id_a ep_a ch_a roothash_a #a.
+              SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash_s)@s
+            & AppendAudit(id_a, ep_a, roothash_a, ch_a)@a
+            & ( ep_s << ep_a | ep_s = ep_a )
+        ==> ( (roothash_s << ch_a & roothash_a << ch_a)
+            | (
+                ( Ex ep_e chainhash chainhash_ #e #e_ .
+                    CtInsertChainhash(ep_e, chainhash)@e
+                    & CtInsertChainhash(ep_e, chainhash_)@e_
+                    & not ( chainhash = chainhash_ )
+                    & ( ep_e << ep_a | ep_e = ep_a )
+                )
+            ))"
 
 // All Queries BEFORE the SelfAudit should be consistent
 // (with the SelfAudit, but also with each other).
