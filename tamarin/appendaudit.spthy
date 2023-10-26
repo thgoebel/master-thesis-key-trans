@@ -17,16 +17,18 @@ rule AppendAudit_Init[color=#f09837]:
     in
     [ Fr(~id)
     , !CT(%1, chainhash, sig) ]
-    --[ AppendInit(~id)
-      , AppendAudit(~id, %1, roothash, chainhash)
+    --[
+        AppendInit(~id)
+      , AppendAuditOld(~id, %1, roothash, chainhash)
       ]->
     [ St_AppendAuditor(~id, %1, chainhash, roothash) ]
 
-// Inserts an new empty leaf for a new label
+
+// Inserts a new empty leaf for a new label
 rule AppendAudit_Insert[color=#f09837]:
     let roothash_old = h( <head, tail> )
 
-        new_ut = <$label, <%1 %+ %1, 'empty'>, 'rest' >
+        new_ut = <$label, <%1 %+ %1, 'empty'>, 'rest' > // revisions start at %2 (in the model)!
         roothash_new = h( <head, <h(new_ut), tail>> )
         chainhash_new = h(<chainhash_old, roothash_new>)
     in
@@ -37,9 +39,9 @@ rule AppendAudit_Insert[color=#f09837]:
     , !CT(%epoch_id %+ %1, chainhash_new, sig)
     ]
     --[
-        AppendInsert(id)
-      , AppendAuditVal($label, 'empty', %1 %+ %1)
-      , AppendAudit(id, %epoch_id %+ %1, roothash_new, chainhash_new)
+        AppendInsert(id, $label)
+      , AppendAuditOld(id, %epoch_id %+ %1, roothash_new, chainhash_new)
+      , AppendAudit(id, %epoch_id %+ %1, roothash_new, chainhash_new, $label, 'empty', %1 %+ %1)
       // limit that $label is not already in head nor tail (i.e. has a unique position)
       , LabelNotInHeadOrTail($label, head, tail)
     ]->
@@ -70,21 +72,25 @@ rule AppendAudit_Update[color=#f09837]:
     , !CT(%epoch_id %+ %1, chainhash_new, sig)
     ]
     --[
-        AppendUpdate(id)
-      , AppendAuditVal($label, val, %rev_old %+ %1)
-      , AppendAudit(id, %epoch_id %+ %1, roothash_new, chainhash_new)
+        AppendUpdate(id, $label)
+      , AppendAuditOld(id, %epoch_id %+ %1, roothash_new, chainhash_new)
+      , AppendAudit(id, %epoch_id %+ %1, roothash_new, chainhash_new, $label, val, %rev_old %+ %1)
     ]->
     [ St_AppendAuditor(id, %epoch_id %+ %1, chainhash_new, roothash_new) ]
+
+
+rule AppendAudit_Exit[color=#f09837]:
+    [ St_AppendAuditor(id, %epoch_id, chainhash, roothash) ] --> []
 
 
 /* ------- Executability (sanity check) Lemmas ------- */
 
 lemma Exec_AppendAuditor_Basic:
     exists-trace
-    "Ex id roothash chainhash #i #j #k .
-          AppendInsert(id)@i
-        & AppendUpdate(id)@j
-        & AppendAudit(id, %1 %+ %1 %+ %1 %+ %1, roothash, chainhash)@k
+    "Ex id label val rev roothash chainhash #i #j #k .
+          AppendInsert(id, label)@i
+        & AppendUpdate(id, label)@j
+        & AppendAudit(id, %1 %+ %1 %+ %1 %+ %1, roothash, chainhash, label, val, rev)@k
         & i < j
         & j < k
     "
@@ -102,8 +108,7 @@ lemma Exec_AppendAuditor_and_SelfAudit_and_Query:
         id_c #k
         id_sa #l #m
         .
-            AppendAudit(id_a, epoch_id, roothash, chainhash)@i
-        //   & AppendUpdate(id_a)@i
+            AppendAudit(id_a, epoch_id, roothash, chainhash, label, val, rev)@i
           & QueryVerified(label, val, rev, epoch_id, roothash, chainhash)@j
           & ClientKeyGen(id_c, label, val)@k
           & SelfAuditStart(id_sa)@l
