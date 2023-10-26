@@ -42,10 +42,10 @@ rule Audit_CT_Equivocation[color=#eb508d]:
 
 lemma Basic_Executability:
     exists-trace
-    "Ex id label val rev #i #j #k .
+    "Ex id label val rev ep roothash chainhash #i #j #k .
           ClientKeyGen(id, label, val)@i
         & Query(label)@j
-        & QueryVerified(label, val, rev)@k
+        & QueryVerified(label, val, rev, ep, roothash, chainhash)@k
         & i < j
         & j < k
     "
@@ -53,12 +53,13 @@ lemma Basic_Executability:
 // Check that the protocol can insert two distinct users into the same tree
 lemma Executability_TwoUsers:
     exists-trace
-    "Ex roothash id1 label1 val1 rev1 #i #j #k
-                 id2 label2 val2 rev2 #l .
-                 ClientKeyGen(id1, label1, val1)@i
+    "Ex roothash chainhash
+        id1 label1 val1 rev1 ep1 #i #j #k
+        id2 label2 val2 rev2 #l
+        .
+          ClientKeyGen(id1, label1, val1)@i
         & Query(label1)@j
-        & QueryVerified(label1, val1, rev1)@k
-        & QueryVerifiedRoothash(roothash)@k
+        & QueryVerified(label1, val1, rev1, ep1, roothash, chainhash)@k
         & i < j
         & j < k
         & ClientKeyGen(id2, label2, val2)@l
@@ -69,18 +70,16 @@ lemma Executability_TwoUsers:
 // Check that the protocol can append to the user subtree
 lemma Executability_TwoRevisions:
     exists-trace
-    "Ex id label val1 rev1 roothash1 #i1 #j1 #k1
-                 val2 rev2 roothash2 #i2 #j2 #k2 .
-                 ClientKeyGen(id, label, val1)@i1
+    "Ex id label val1 rev1 ep1 roothash1 chainhash1 #i1 #j1 #k1
+                 val2 rev2 ep2 roothash2 chainhash2 #i2 #j2 #k2 .
+          ClientKeyGen(id, label, val1)@i1
         & Query(label)@j1
-        & QueryVerified(label, val1, rev1)@k1
-        & QueryVerifiedRoothash(roothash1)@k1
+        & QueryVerified(label, val1, rev1, ep1, roothash1, chainhash1)@k1
         & i1 < j1
         & j1 < k1
         & ClientKeyGen(id, label, val2)@i2
         & Query(label)@j2
-        & QueryVerified(label, val2, rev2)@k2
-        & QueryVerifiedRoothash(roothash2)@k2
+        & QueryVerified(label, val2, rev2, ep2, roothash2, chainhash2)@k2
         & i2 < j2
         & j2 < k2
         // force a nice tree structure

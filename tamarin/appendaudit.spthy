@@ -7,8 +7,8 @@ and later change it back.
 The model gradually builds the tree by appending
 and **incrementing the epoch_id**.
 
-We can then use the roothash in the auditor's action facts
-and link it to the roothash seen elsewhere.
+We can then use the roothash/chainhash in the auditor's action facts
+and link it to the roothash/chainhash seen elsewhere.
 */
 
 rule AppendAudit_Init[color=#f09837]:
@@ -104,7 +104,7 @@ lemma Exec_AppendAuditor_and_SelfAudit_and_Query:
         .
             AppendAudit(id_a, epoch_id, roothash, chainhash)@i
         //   & AppendUpdate(id_a)@i
-          & QueryVerifiedEpHash(label, val, rev, epoch_id, roothash)@j
+          & QueryVerified(label, val, rev, epoch_id, roothash, chainhash)@j
           & ClientKeyGen(id_c, label, val)@k
           & SelfAuditStart(id_sa)@l
           & SelfAuditVerified(id_c, id_sa, label, epoch_id, roothash)@m

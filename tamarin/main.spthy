@@ -179,11 +179,11 @@ restriction StrictlyGreaterThan: // x > y
 //     "
 
 lemma Same_Roothash_Implies_Same_Values[reuse]:
-    "All label roothash
+    "All label roothash chainhash
         val_q rev_q ep_q #q
         id_c id_sa1 ep_s #s1
         .
-          QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash)@q
+          QueryVerified(label, val_q, rev_q, ep_q, roothash, chainhash)@q
         & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash)@s1
         // & ( ep_q << ep_s | ep_q = ep_s )
     ==>
@@ -196,9 +196,9 @@ lemma Same_Roothash_Implies_Same_Values[reuse]:
     "
 
 lemma RootHashChainQ[reuse]:
-    "All label val_q rev_q ep_q roothash_q #q
+    "All label val_q rev_q ep_q roothash_q chainhash_q #q
         id_a ep_a ch_a roothash_a #a.
-              QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash_q)@q
+              QueryVerified(label, val_q, rev_q, ep_q, roothash_q, chainhash_q)@q
             & AppendAudit(id_a, ep_a, roothash_a, ch_a)@a
             & ( ep_q << ep_a | ep_q = ep_a )
         ==> ( (roothash_q << ch_a & roothash_a << ch_a)
@@ -232,12 +232,12 @@ lemma RootHashChainSA[reuse]:
 // TODO: depends on roothashes/chainhashes
 lemma Sec_Consistency:
     "All label
-        val_q rev_q ep_q roothash_q #q
+        val_q rev_q ep_q roothash_q chainhash_q #q
         ep_s id_c id_sa1 roothash_s #s1
         id_a ep_a roothash_a chainhash_a #a
         .
 
-        QueryVerifiedEpHash(label, val_q, rev_q, ep_q, roothash_q)@q
+        QueryVerified(label, val_q, rev_q, ep_q, roothash_q, chainhash_q)@q
 
           & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash_s)@s1
           // only for all queries in epochs up to the SelfAudit

@@ -42,39 +42,9 @@ rule VerifyQuery_1[color=#c4b7ff]:
     --[
         // revisions start at 2 (see main.spthy)
         StrictlyGreaterThan(%rev, %1)
-      , QueryVerified($label, val, %rev)
-      , QueryVerifiedEpoch(%epoch_id)
-      , QueryVerifiedRoothash(roothash)
-      , QueryVerifiedEp($label, val, %rev, %epoch_id)
-      , QueryVerifiedEpHash($label, val, %rev, %epoch_id, roothash)
+      , QueryVerified($label, val, %rev, %epoch_id, roothash, chainhash)
       , Eq(roothash_computed, roothash)
         // TODO: check minEpochId
         // TODO: check SKL signature
     ]->
     []
-
-
-
-
-/* ------- Security Lemmas ------- */
-
-// lemma Helper_Ordering_QueryVerified [reuse]:
-//     all-traces
-//     "All epoch_id label val rev roothash #i .
-//         QueryVerified(epoch_id, label, val, rev, roothash)@i
-//         ==>
-//         (Ex #j . Insert(label, val, rev)@j & j < i )
-//     "
-
-// XXX: no outcome type, i.e. only inclusion for now (no absence/obsolence)
-// lemma QueryConsistency:
-//     all-traces
-//     "All label val1 rev1 val2 rev2 roothash1 roothash2 #i1 #i2 .
-//           QueryVerified(label, val1, rev1, roothash1)@i1
-//         & QueryVerified(label, val2, rev2, roothash2)@i2
-//         & roothash1 = roothash2
-//         & not (Ex #r . RevealServerSk()@r & r < i1 & r < i2)
-//         ==>
-//           val1 = val2
-//         & rev1 = rev2
-//     "
