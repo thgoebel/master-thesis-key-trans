@@ -178,6 +178,64 @@ restriction StrictlyGreaterThan: // x > y
 //         Ex id_sa2 label val #i . SelfAuditVal(id_c, id_sa2, label, val, rev)@i & i < j
 //     "
 
+// Query and Append Audit imply that an audit loop saw the query's <val,rev>.
+// Q ∧ A ==> ∃ AL
+lemma one[reuse,use_induction]:
+    "All label val rev ep_q roothash_q chainhash_q #i
+        // label_a val_a rev_a are irrelevant for this lemma, they could be anything!
+        id_a ep_a roothash_a chainhash_a label_a val_a rev_a #j
+        .
+          QueryVerified(label, val, rev, ep_q, roothash_q, chainhash_q)@i
+        & AppendAudit(id_a, ep_a, roothash_a, chainhash_a, label_a, val_a, rev_a)@j
+        & ( ep_q << ep_a | ep_q = ep_a )
+        // & roothash_q << chainhash_a // TODO: move into implication?
+    ==>
+        // then there was some earlier AppendAudit loop (same id_a!) that saw the query's <label, val, rev>
+        (
+          Ex ep_aa roothash_aa chainhash_aa #k .
+               AppendAudit(id_a, ep_aa, roothash_aa, chainhash_aa, label, val, rev)@k
+            & (k < j | #k = #j)
+        )
+        // or equivocation
+        | (
+            Ex ep_e chainhash chainhash_ #e #e_ .
+                CtInsertChainhash(ep_e, chainhash)@e
+                & CtInsertChainhash(ep_e, chainhash_)@e_
+                & not ( chainhash = chainhash_ )
+                & ( ep_e << ep_a | ep_e = ep_a )
+        )
+    "
+
+// SelfAuditVerified and AppendAudit loop that saw a <val,rev>
+// imply that the SelfAudit loop saw the same <val,rev> at some point.
+// SA ∧ AL ==> ∃ SAL
+lemma two[reuse,use_induction]:
+    "All label val rev
+        id_c id_sa ep_sa roothash_sa #sa
+        id_a ep_a roothash_a chainhash_a #a
+        .
+          SelfAuditVerified(id_c, id_sa, label, ep_sa, roothash_sa)@sa
+        & AppendAudit(id_a, ep_a, roothash_a, chainhash_a, label, val, rev)@a
+        & ( ep_sa << ep_a | ep_sa = ep_a )
+        // & roothash_sa << chainhash_a // TODO: move into implication?
+    ==>
+        // then an earlier SelfAudit loop saw the AppendAudit's <val,rev>
+        (
+            Ex id_sa_ #sa_ .
+                SelfAuditVal(id_c, id_sa_, label, val, rev)@sa_
+              & sa_ < sa
+        )
+        // or equivocation
+        | (
+            Ex ep_e chainhash chainhash_ #e #e_ .
+                CtInsertChainhash(ep_e, chainhash)@e
+                & CtInsertChainhash(ep_e, chainhash_)@e_
+                & not ( chainhash = chainhash_ )
+                & ( ep_e << ep_a | ep_e = ep_a )
+        )
+    "
+
+
 lemma Same_Roothash_Implies_Same_Values[reuse]:
     "All label roothash chainhash
         val_q rev_q ep_q #q
@@ -235,47 +293,34 @@ lemma RootHashChainSA[reuse]:
 lemma Sec_Consistency:
     "All label
         val_q rev_q ep_q roothash_q chainhash_q #q
-        ep_s id_c id_sa1 roothash_s #s1
-        id_a ep_a roothash_a chainhash_a #a
+        ep_s id_c id_sa1 roothash_sa #sa
+        id_a ep_a roothash_a chainhash_a label_irr val_irr rev_irr #a
         .
 
         QueryVerified(label, val_q, rev_q, ep_q, roothash_q, chainhash_q)@q
 
-          & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash_s)@s1
+          & SelfAuditVerified(id_c, id_sa1, label, ep_s, roothash_sa)@sa
           // only for all queries in epochs up to the SelfAudit
           & ( ep_q << ep_s | ep_q = ep_s )
 
-          // and there was an append-only-audit concluding at the same roothash
-          & AppendAuditOld(id_a, ep_a, roothash_a, chainhash_a)@a
+          // and there was an append-only-audit (for some irrelevant <label,val,rev>)
+          & AppendAudit(id_a, ep_a, roothash_a, chainhash_a, label_irr, val_irr, rev_irr)@a
+          // for an epoch after the SelfAudit and after the Query
           & ( ep_s << ep_a | ep_s = ep_a )
+          // in other words, if there was no AppendAudit then we cannot have any security
 
         ==>
-        // Case 1: roothashes are equal
-        //         then we want security:
-        //         i.e. SOME previous self-audit saw this key as well
-        //         (this may be different from the Self-Audit above)
-        (
-            // roothash_q = roothash_s
-            // ==>
-            ( Ex id_sa2 val_s rev_s #s2 .
-                SelfAuditVal(id_c, id_sa2, label, val_s, rev_s)@s2
-                & s2 < s1
-                // the value + revision are consistent
-                & val_q = val_s
-                & rev_q = rev_s
-            )
+        // then SOME previous SelfAudit loop of the same client saw this <val,rev> as well
+        // (this may be different from the SelfAudit above)
+        ( Ex id_sa_ #sa_ .
+            SelfAuditVal(id_c, id_sa_, label, val_q, rev_q)@sa_
+            & sa_ < sa
         )
-        // TODO: and no self-audit saw a different key?
+        // TODO: and no self-audit saw a different val for the same rev?
 
-        // or an auditor raised a warning for append-only-ness
-        // | ( Ex . )
-
-        // Case 2: roothashes are NOT equal
-        //         then we want this to be detected
         // TODO: and the offending epoch was inserted BEFORE the querying??
+        // or equivocation
         | (
-            // not ( roothash_q = roothash_s)
-            // ==>
             ( Ex ep_e chainhash chainhash_ #e #e_ .
                   CtInsertChainhash(ep_e, chainhash)@e
                 & CtInsertChainhash(ep_e, chainhash_)@e_
