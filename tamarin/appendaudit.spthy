@@ -78,6 +78,19 @@ rule AppendAudit_Update[color=#f09837]:
     ]->
     [ St_AppendAuditor(id, %epoch_id %+ %1, chainhash_new, roothash_new) ]
 
+lemma AuditStart[reuse]:
+    "All id e rh ch label val rev #a.
+            AppendAudit(id, e, rh, ch, label, val, rev) @ #a
+        ==> (e = %1 %+ %1) | (Ex rh_ ch_ l_ v_ r_ #x.
+                AppendAudit(id, %1 %+ %1, rh_, ch_, l_, v_, r_) @ #x
+            & rh_ << ch & ch_ << ch)"
+
+lemma AuditStable[reuse]:
+    "All id e rh ch e_ rh_ ch_ #a #a_ label label_ val val_ rev rev_.
+              AppendAudit(id, e, rh, ch, label, val, rev) @ #a
+            & AppendAudit(id, e_, rh_, ch_, label_, val_, rev_) @ #a_
+            & #a_ < #a
+        ==> e_ << e & rh_ << ch & ch_ << ch"
 
 rule AppendAudit_Exit[color=#f09837]:
     [ St_AppendAuditor(id, %epoch_id, chainhash, roothash) ] --> []
