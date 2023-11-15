@@ -178,9 +178,99 @@ restriction StrictlyGreaterThan: // x > y
 //         Ex id_sa2 label val #i . SelfAuditVal(id_c, id_sa2, label, val, rev)@i & i < j
 //     "
 
+lemma AppendAudit_Update_implies_Insert[reuse,use_induction]:
+    "All id label #j.
+        AppendUpdate(id, label)@j
+        ==>
+        Ex #i . AppendInsert(id, label)@i & i < j
+    "
+
+// The chainhash used by AppendAudit must be logged
+lemma AppendAudit_implies_CT_Insert[reuse]:
+    "All id epoch_id roothash chainhash label val rev #j .
+        AppendAudit(id, epoch_id, roothash, chainhash, label, val, rev)@j
+        // AppendAudit(id, epoch_id, roothash, chainhash)@j
+    ==>
+        Ex #i .
+            CtInsertChainhash(epoch_id, chainhash)@i & i < j
+    "
+
+// The chainhash used by QueryVerification must be logged
+lemma QueryVerified_implies_CT_Insert[reuse]:
+    "All label val rev epoch_id roothash chainhash #j .
+        QueryVerified(label, val, rev, epoch_id, roothash, chainhash)@j
+    ==>
+        Ex #i .
+            CtInsertChainhash(epoch_id, chainhash)@i & i < j
+    "
+
+// If a <label, val, rev> was QueryVerified, it must be a subterm of the roothash and of the chainhash
+lemma QueryVerified_LabelRevValAreSubtermsOfHashes[reuse]:
+    "All label val rev ep roothash_q chainhash_q #i .
+        QueryVerified(label, val, rev, ep, roothash_q, chainhash_q)@i
+    ==>
+          label << roothash_q
+        &   val << roothash_q
+        &   rev << roothash_q
+
+        & label << chainhash_q
+        &   val << chainhash_q
+        &   rev << chainhash_q
+    "
+
+// If a <label, val, rev> was seen by an AppendAudit, it must be a subterm of the roothash and of the chainhash
+lemma AppendAudit_LabelRevValAreSubtermsOfHashes[reuse]:
+    "All id label val rev ep roothash_a chainhash_a #i .
+        AppendAudit(id, ep, roothash_a, chainhash_a, label, val, rev)@i
+    ==>
+          label << roothash_a
+        &   val << roothash_a
+        &   rev << roothash_a
+
+        & label << chainhash_a
+        &   val << chainhash_a
+        &   rev << chainhash_a
+    "
+
+// Every AppendAudit() fact either has a direct parent which are subterms, or an AppendInit()
+// TODO: we cannot prove this :/
+// lemma AppendAudit_HasDirectParent[reuse,use_induction]:
+//     "All id label val rev %ep roothash chainhash #j .
+//         AppendAudit(id, %ep, roothash, chainhash, label, val, rev)@j
+//     ==>
+//         (Ex %ep_ roothash_ chainhash_ label_ val_ rev_ #i .
+//             AppendAudit(id, %ep_, roothash_, chainhash_, label_, val_, rev_)@i
+//             & i < j
+//             & ( %ep_ %+ %1 = %ep )
+//             & roothash_  << chainhash
+//             & chainhash_ << chainhash
+//         )
+//         | ( Ex #i .
+//             AppendInit(id)@i & i < j
+//         )
+//     "
+
+// lemma AppendAudits_AreSubtermsOfEachOther[reuse,use_induction]:
+//     "All id label val rev ep roothash chainhash #j
+//         ep_ roothash_ chainhash_ label_ val_ rev_ #i
+//         .
+//           // for a given AppendAudit()
+//           AppendAudit(id, ep, roothash, chainhash, label, val, rev)@j
+//           // it holds that in all previous AppendAudit()s
+//         & AppendAudit(id, ep_, roothash_, chainhash_, label_, val_, rev_)@i
+//         & i < j
+//         & ep_ << ep
+//     ==>
+//           // the values are subterms of the later AppendAudit()
+//           roothash_  << chainhash
+//         & chainhash_ << chainhash
+//     "
+
+
+
 // Query and Append Audit imply that an audit loop saw the query's <val,rev>.
 // Q ∧ A ==> ∃ AL
-lemma one[reuse,use_induction]:
+lemma one[reuse]:
     "All label val rev ep_q roothash_q chainhash_q #i
         // label_a val_a rev_a are irrelevant for this lemma, they could be anything!
         id_a ep_a roothash_a chainhash_a label_a val_a rev_a #j
@@ -232,6 +322,29 @@ lemma two[reuse,use_induction]:
                 & CtInsertChainhash(ep_e, chainhash_)@e_
                 & not ( chainhash = chainhash_ )
                 & ( ep_e << ep_a | ep_e = ep_a )
+        )
+    "
+
+// If an epoch inserts a value (as seen by append audit)
+// then a query AT THE SAME EPOCH must return that value.
+lemma SanityCheck_QueryAndAppendAuditorSeeSameValue:
+    "All id epoch_id roothash chainhash label val rev #i .
+        AppendAudit(id, epoch_id, roothash, chainhash, label, val, rev)@i
+    ==>
+        not (Ex roothash_ chainhash_ val_ rev_ #j .// val_ rev_ #j .
+                  not (val = val_)
+                & not (rev = rev_)
+                // & QueryVerified(label, val_, rev_)@j
+                //   not (chainhash = chainhash_)
+                & QueryVerified(label, val_, rev_, epoch_id, roothash_, chainhash_)@j
+            )
+        // or equivocation
+        | (
+            Ex ep_e chainhash chainhash_ #e #e_ .
+                CtInsertChainhash(ep_e, chainhash)@e
+                & CtInsertChainhash(ep_e, chainhash_)@e_
+                & not ( chainhash = chainhash_ )
+                & ( ep_e << epoch_id | ep_e = epoch_id )
         )
     "
 

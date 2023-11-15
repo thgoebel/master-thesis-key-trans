@@ -37,7 +37,8 @@ lemma = argv[1]
 
 if lemma == "SelfAudit_Loop_Unique_Start":
     match = matchAgainstList([re.compile(r"St_SelfAudit_1\(.*~id_sa,.*")], lines)
-
+elif lemma == "one":
+    match = matchAgainstList(["AppendAudit", "St_AppendAudit"], lines)
 
 if match is not None:
     print(match)
